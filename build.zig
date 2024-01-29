@@ -16,14 +16,14 @@ pub fn build(b: *std.Build) !void {
     b.default_step.dependOn(&exed.step);
 
     // TODO
-    // const exer = try rustcBuildStep(b, .{
-    //     .name = "hellors",
-    //     .target = target,
-    //     .optimize = optimize,
-    //     .sources = &.{"src/main.rs"},
-    //     .rflags = &.{
-    //     },
-    // });
+    const exers = try rustcBuildStep(b, .{
+        .name = "hellors",
+        .target = target,
+        .optimize = optimize,
+        .source = "src/main.rs",
+        .rflags = &.{},
+    });
+    b.default_step.dependOn(&exers.step);
 }
 
 // Use LDC2 (https://github.com/ldc-developers/ldc) to compile the D examples
@@ -158,11 +158,11 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
 
     // linker flags
     // GNU LD
-    if (options.target.result.os.tag == .linux and !options.zig_cc) {
+    if (options.target.result.os.tag == .linux) {
         try cmds.append("-L--no-as-needed");
     }
     // LLD (not working in zld)
-    if (options.target.result.isDarwin() and !options.zig_cc) {
+    if (options.target.result.isDarwin()) {
         // https://github.com/ldc-developers/ldc/issues/4501
         try cmds.append("-L-w"); // hide linker warnings
     }
@@ -177,14 +177,14 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         try cmds.append("-Xcc=-v");
     }
 
-    if (options.artifact) |lib_sokol| {
-        if (lib_sokol.linkage == .dynamic or options.linkage == .dynamic) {
+    if (options.artifact) |lib| {
+        if (lib.linkage == .dynamic or options.linkage == .dynamic) {
             // linking the druntime/Phobos as dynamic libraries
             try cmds.append("-link-defaultlib-shared");
         }
 
         // C include path
-        for (lib_sokol.root_module.include_dirs.items) |include_dir| {
+        for (lib.root_module.include_dirs.items) |include_dir| {
             if (include_dir == .other_step) continue;
             const path = if (include_dir == .path)
                 include_dir.path.getPath(b)
@@ -196,19 +196,19 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         }
 
         // library paths
-        for (lib_sokol.root_module.lib_paths.items) |libpath| {
+        for (lib.root_module.lib_paths.items) |libpath| {
             if (libpath.path.len > 0) // skip empty paths
                 try cmds.append(b.fmt("-L-L{s}", .{libpath.path}));
         }
 
         // link system libs
-        for (lib_sokol.root_module.link_objects.items) |link_object| {
+        for (lib.root_module.link_objects.items) |link_object| {
             if (link_object != .system_lib) continue;
             const system_lib = link_object.system_lib;
             try cmds.append(b.fmt("-L-l{s}", .{system_lib.name}));
         }
         // C flags
-        for (lib_sokol.root_module.link_objects.items) |link_object| {
+        for (lib.root_module.link_objects.items) |link_object| {
             if (link_object != .c_source_file) continue;
             const c_source_file = link_object.c_source_file;
             for (c_source_file.flags) |flag|
@@ -217,36 +217,36 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
             break;
         }
         // C defines
-        for (lib_sokol.root_module.c_macros.items) |cdefine| {
+        for (lib.root_module.c_macros.items) |cdefine| {
             if (cdefine.len > 0) // skip empty cdefines
                 try cmds.append(b.fmt("-P-D{s}", .{cdefine}));
             break;
         }
 
-        if (lib_sokol.dead_strip_dylibs) {
+        if (lib.dead_strip_dylibs) {
             try cmds.append("-L=-dead_strip");
         }
         // Darwin frameworks
         if (options.target.result.isDarwin()) {
-            var it = lib_sokol.root_module.frameworks.iterator();
+            var it = lib.root_module.frameworks.iterator();
             while (it.next()) |framework| {
                 try cmds.append(b.fmt("-L-framework", .{}));
                 try cmds.append(b.fmt("-L{s}", .{framework.key_ptr.*}));
             }
         }
 
-        if (lib_sokol.root_module.sanitize_thread) |tsan| {
+        if (lib.root_module.sanitize_thread) |tsan| {
             if (tsan)
                 try cmds.append("--fsanitize=thread");
         }
 
         // zig enable sanitize=undefined by default
-        if (lib_sokol.root_module.sanitize_c) |ubsan| {
+        if (lib.root_module.sanitize_c) |ubsan| {
             if (ubsan)
                 try cmds.append("--fsanitize=address");
         }
 
-        if (lib_sokol.root_module.omit_frame_pointer) |enabled| {
+        if (lib.root_module.omit_frame_pointer) |enabled| {
             if (enabled)
                 try cmds.append("--frame-pointer=none")
             else
@@ -254,7 +254,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         }
 
         // link-time optimization
-        if (lib_sokol.want_lto) |enabled|
+        if (lib.want_lto) |enabled|
             if (enabled) try cmds.append("--flto=full");
     }
 
@@ -289,8 +289,8 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     var ldc_exec = b.addSystemCommand(cmds.items);
     ldc_exec.setName(options.name);
 
-    if (options.artifact) |lib_sokol| {
-        ldc_exec.addArtifactArg(lib_sokol);
+    if (options.artifact) |lib| {
+        ldc_exec.addArtifactArg(lib);
     }
 
     const example_run = b.addSystemCommand(&.{b.pathJoin(&.{ b.install_path, outputDir, options.name })});
@@ -315,10 +315,8 @@ pub const DCompileStep = struct {
     dflags: []const []const u8,
     ldflags: ?[]const []const u8 = null,
     name: []const u8,
-    zig_cc: bool = false,
     d_packages: ?[]const []const u8 = null,
     artifact: ?*std.Build.Step.Compile = null,
-    emsdk: ?*std.Build.Dependency = null,
 };
 pub fn addArtifact(b: *std.Build, options: DCompileStep) *std.Build.Step.Compile {
     return std.Build.Step.Compile.create(b, .{
@@ -331,6 +329,140 @@ pub fn addArtifact(b: *std.Build, options: DCompileStep) *std.Build.Step.Compile
         .kind = options.kind,
     });
 }
+
+// Rustc support
+pub fn rustcBuildStep(b: *std.Build, options: RsCompileStep) !*std.Build.Step.Run {
+    const rustc = try b.findProgram(&.{"rustc"}, &.{});
+
+    var cmds = std.ArrayList([]const u8).init(b.allocator);
+    defer cmds.deinit();
+
+    // Rust compiler
+    try cmds.append(rustc);
+
+    switch (options.edition) {
+        .ed2015 => try cmds.append("--edition=2015"),
+        .ed2018 => try cmds.append("--edition=2018"),
+        .ed2021 => try cmds.append("--edition=2021"),
+        .ed2024 => try cmds.append("--edition=2024"),
+    }
+
+    // set kind of build
+    switch (options.kind) {
+        .@"test" => try cmds.append("--test"),
+        .obj => try cmds.append("--emit=obj"),
+        .exe => try cmds.append("--crate-type=bin"),
+        .lib => {
+            if (options.linkage == .static)
+                try cmds.append("--crate-type=staticlib")
+            else
+                try cmds.append("--crate-type=dylib");
+        },
+    }
+
+    switch (options.optimize) {
+        .Debug => {
+            try cmds.append("-g");
+        },
+        .ReleaseFast, .ReleaseSafe => {
+            try cmds.append("-Copt-level=3");
+            try cmds.append("-Cembed-bitcode=no");
+        },
+        .ReleaseSmall => {
+            try cmds.append("-Copt-level=z");
+            try cmds.append("-Cstrip=debuginfo");
+            try cmds.append("-Cembed-bitcode=no");
+        },
+    }
+
+    if (b.verbose)
+        try cmds.append("-v");
+
+    for (options.rflags) |rflag| {
+        try cmds.append(rflag);
+    }
+
+    if (options.ldflags) |ldflags| {
+        for (ldflags) |ldflag| {
+            if (ldflag[0] == '-') {
+                @panic("ldflags: add library name only!");
+            }
+            try cmds.append(b.fmt("-l{s}", .{ldflag}));
+        }
+    }
+
+    // Rust Source file
+    try cmds.append(options.source);
+
+    const target = if (options.target.result.isDarwin())
+        b.fmt("{s}-apple-darwin", .{@tagName(options.target.result.cpu.arch)})
+    else if (options.target.result.isWasm())
+        b.fmt("{s}-unknown-unknown", .{@tagName(options.target.result.cpu.arch)})
+    else if (options.target.result.isWasm() and options.target.result.os.tag == .emscripten)
+        b.fmt("{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+    else if (options.target.result.isWasm() and options.target.result.os.tag == .wasi)
+        b.fmt("{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+    else if (options.target.result.os.tag == .windows)
+        b.fmt("{s}-pc-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
+    else
+        b.fmt("{s}-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
+
+    try cmds.append(b.fmt("--target={s}", .{target}));
+
+    // cpu model (e.g. "baseline")
+    if (options.target.query.isNative())
+        try cmds.append("-Ctarget-cpu=native");
+
+    const outputDir = switch (options.kind) {
+        .lib => "lib",
+        .exe => "bin",
+        .@"test" => "test",
+        .obj => "obj",
+    };
+
+    // output directory and filename
+    try cmds.append(b.fmt("--out-dir={s}", .{b.pathJoin(&.{ b.install_prefix, outputDir })}));
+    try cmds.append(b.fmt("--crate-name={s}", .{options.name}));
+
+    // run the command
+    var rustc_exec = b.addSystemCommand(cmds.items);
+    rustc_exec.setName(options.name);
+
+    if (options.artifact) |lib| {
+        rustc_exec.addArtifactArg(lib);
+    }
+
+    const example_run = b.addSystemCommand(&.{b.pathJoin(&.{ b.install_path, outputDir, options.name })});
+    example_run.step.dependOn(&rustc_exec.step);
+
+    const run = if (options.kind != .@"test")
+        b.step(b.fmt("run-{s}", .{options.name}), b.fmt("Run {s} example", .{options.name}))
+    else
+        b.step("test", "Run all tests");
+    run.dependOn(&example_run.step);
+
+    return rustc_exec;
+}
+pub const RsCompileStep = struct {
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode = .Debug,
+    kind: std.Build.Step.Compile.Kind = .exe,
+    linkage: std.Build.Step.Compile.Linkage = .static,
+    source: []const u8,
+    rflags: []const []const u8,
+    ldflags: ?[]const []const u8 = null,
+    name: []const u8,
+    rs_packages: ?[]const []const u8 = null,
+    artifact: ?*std.Build.Step.Compile = null,
+    edition: rust_edition = .ed2021,
+};
+
+const rust_edition = enum {
+    ed2015,
+    ed2018,
+    ed2021,
+    ed2024,
+};
 
 fn rootPath() []const u8 {
     return std.fs.path.dirname(@src().file) orelse ".";
