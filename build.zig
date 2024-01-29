@@ -1,9 +1,10 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) !void {
-    const target = b.standardTargetOptions(.{});
+    const target = b.standardTargetOptions(.{ .default_target = if (builtin.os.tag == .windows) try std.Target.Query.parse(.{ .arch_os_abi = "native-windows-msvc" }) else .{} });
     const optimize = b.standardOptimizeOption(.{});
-    const exe = try ldcBuildStep(b, .{
+    const exed = try ldcBuildStep(b, .{
         .name = "helloD",
         .target = target,
         .optimize = optimize,
@@ -12,7 +13,17 @@ pub fn build(b: *std.Build) !void {
             "-w",
         },
     });
-    b.default_step.dependOn(&exe.step);
+    b.default_step.dependOn(&exed.step);
+
+    // TODO
+    // const exer = try rustcBuildStep(b, .{
+    //     .name = "hellors",
+    //     .target = target,
+    //     .optimize = optimize,
+    //     .sources = &.{"src/main.rs"},
+    //     .rflags = &.{
+    //     },
+    // });
 }
 
 // Use LDC2 (https://github.com/ldc-developers/ldc) to compile the D examples
