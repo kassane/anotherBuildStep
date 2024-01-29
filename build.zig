@@ -332,13 +332,14 @@ pub fn addArtifact(b: *std.Build, options: DCompileStep) *std.Build.Step.Compile
 
 // Rustc support
 pub fn rustcBuildStep(b: *std.Build, options: RsCompileStep) !*std.Build.Step.Run {
-    const rustc = try b.findProgram(&.{"rustc"}, &.{});
+    //fixme: why detecting rustup? rustc alias?
+    // const rustc = try b.findProgram(&.{"rustc"}, &.{});
 
     var cmds = std.ArrayList([]const u8).init(b.allocator);
     defer cmds.deinit();
 
     // Rust compiler
-    try cmds.append(rustc);
+    try cmds.append("rustc");
 
     switch (options.edition) {
         .ed2015 => try cmds.append("--edition=2015"),

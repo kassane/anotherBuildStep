@@ -7,14 +7,14 @@
 ## TODO
 
 - [x] ldc2 support
-- [ ] rustc (no cargo) support
+- [x] rustc (no cargo) support
 - [ ] ~~rustc (cargo) support~~ (need to figure out how to get the cargo build system to work)
 
 ## Required
 
 - [zig](https://ziglang.org/download) v0.12.0 or master
 - [ldc2](https://ldc-developers.github.io/) v1.36.0 or latest-CI
-<!-- - [rustc](https://www.rust-lang.org/tools/install) stable or nightly -->
+- [rustc](https://www.rust-lang.org/tools/install) stable or nightly
 
 
 ## Usage
