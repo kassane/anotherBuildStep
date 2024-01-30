@@ -53,8 +53,8 @@ pub fn build(b: *std.Build) !void {
 
     // or
 
-    const exeRust = try rustcBuildStep(b, .{
-        .name = "hellors",
+    const exeRust = try abs.rustcBuildStep(b, .{
+        .name = "helloRust",
         .target = target,
         .optimize = optimize,
         .source = "src/main.rs",
