@@ -4,7 +4,7 @@ const builtin = @import("builtin");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{ .default_target = if (builtin.os.tag == .windows) try std.Target.Query.parse(.{ .arch_os_abi = "native-windows-msvc" }) else .{} });
     const optimize = b.standardOptimizeOption(.{});
-    const exed = try ldcBuildStep(b, .{
+    const exeD = try ldcBuildStep(b, .{
         .name = "helloD",
         .target = target,
         .optimize = optimize,
@@ -13,17 +13,19 @@ pub fn build(b: *std.Build) !void {
             "-w",
         },
     });
-    b.default_step.dependOn(&exed.step);
+    b.default_step.dependOn(&exeD.step);
 
-    // TODO
-    const exers = try rustcBuildStep(b, .{
+    const exeRust = try rustcBuildStep(b, .{
         .name = "hellors",
         .target = target,
         .optimize = optimize,
         .source = "src/main.rs",
-        .rflags = &.{},
+        .rflags = &.{
+            "-C",
+            "panic=abort",
+        },
     });
-    b.default_step.dependOn(&exers.step);
+    b.default_step.dependOn(&exeRust.step);
 }
 
 // Use LDC2 (https://github.com/ldc-developers/ldc) to compile the D examples
@@ -318,22 +320,13 @@ pub const DCompileStep = struct {
     d_packages: ?[]const []const u8 = null,
     artifact: ?*std.Build.Step.Compile = null,
 };
-pub fn addArtifact(b: *std.Build, options: DCompileStep) *std.Build.Step.Compile {
-    return std.Build.Step.Compile.create(b, .{
-        .name = options.name,
-        .root_module = .{
-            .target = options.target,
-            .optimize = options.optimize,
-        },
-        .linkage = options.linkage,
-        .kind = options.kind,
-    });
-}
 
 // Rustc support
-pub fn rustcBuildStep(b: *std.Build, options: RsCompileStep) !*std.Build.Step.Run {
+pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.Run {
+
     //fixme: why detecting rustup? rustc alias?
     // const rustc = try b.findProgram(&.{"rustc"}, &.{});
+    const rustup = try b.findProgram(&.{"rustup"}, &.{});
 
     var cmds = std.ArrayList([]const u8).init(b.allocator);
     defer cmds.deinit();
@@ -341,11 +334,12 @@ pub fn rustcBuildStep(b: *std.Build, options: RsCompileStep) !*std.Build.Step.Ru
     // Rust compiler
     try cmds.append("rustc");
 
+    try cmds.append("--edition");
     switch (options.edition) {
-        .ed2015 => try cmds.append("--edition=2015"),
-        .ed2018 => try cmds.append("--edition=2018"),
-        .ed2021 => try cmds.append("--edition=2021"),
-        .ed2024 => try cmds.append("--edition=2024"),
+        .@"2015" => try cmds.append("2015"),
+        .@"2018" => try cmds.append("2018"),
+        .@"2021" => try cmds.append("2021"),
+        .@"2024" => try cmds.append("2024"),
     }
 
     // set kind of build
@@ -361,18 +355,27 @@ pub fn rustcBuildStep(b: *std.Build, options: RsCompileStep) !*std.Build.Step.Ru
         },
     }
 
+    // no bitcode
+    try cmds.append("-C");
+    try cmds.append("embed-bitcode=no");
+
     switch (options.optimize) {
         .Debug => {
             try cmds.append("-g");
         },
-        .ReleaseFast, .ReleaseSafe => {
-            try cmds.append("-Copt-level=3");
-            try cmds.append("-Cembed-bitcode=no");
+        .ReleaseSafe => {
+            try cmds.append("-C");
+            try cmds.append("opt-level=3");
+            try cmds.append("-C");
+            try cmds.append("embed-bitcode=no");
         },
-        .ReleaseSmall => {
-            try cmds.append("-Copt-level=z");
-            try cmds.append("-Cstrip=debuginfo");
-            try cmds.append("-Cembed-bitcode=no");
+        .ReleaseFast, .ReleaseSmall => {
+            try cmds.append("-C");
+            try cmds.append("opt-level=z");
+            try cmds.append("-C");
+            try cmds.append("strip=debuginfo");
+            try cmds.append("-C");
+            try cmds.append("strip=symbols");
         },
     }
 
@@ -395,6 +398,65 @@ pub fn rustcBuildStep(b: *std.Build, options: RsCompileStep) !*std.Build.Step.Ru
     // Rust Source file
     try cmds.append(options.source);
 
+    // sysroot override
+    if (b.sysroot) |sysroot_path| {
+        try cmds.append(b.fmt("--sysroot={s}", .{sysroot_path}));
+    }
+
+    if (options.artifact) |lib| {
+
+        // library paths
+        for (lib.root_module.lib_paths.items) |libpath| {
+            if (libpath.path.len > 0) // skip empty paths
+                try cmds.append(b.fmt("-L{s}", .{libpath.path}));
+        }
+
+        // link system libs
+        for (lib.root_module.link_objects.items) |link_object| {
+            if (link_object != .system_lib) continue;
+            const system_lib = link_object.system_lib;
+            try cmds.append(b.fmt("-l{s}", .{system_lib.name}));
+        }
+
+        // Darwin frameworks
+        if (options.target.result.isDarwin()) {
+            var it = lib.root_module.frameworks.iterator();
+            while (it.next()) |framework| {
+                try cmds.append(b.fmt("-L-framework", .{}));
+                try cmds.append(b.fmt("-L{s}", .{framework.key_ptr.*}));
+            }
+        }
+
+        if (lib.root_module.sanitize_thread) |tsan| {
+            if (tsan)
+                try cmds.append("--fsanitize=thread");
+        }
+
+        // zig enable sanitize=undefined by default
+        if (lib.root_module.sanitize_c) |ubsan| {
+            if (ubsan)
+                try cmds.append("--fsanitize=address");
+        }
+
+        if (lib.root_module.omit_frame_pointer) |enabled| {
+            if (enabled)
+                try cmds.append("--frame-pointer=none")
+            else
+                try cmds.append("--frame-pointer=all");
+        }
+
+        // link-time optimization
+        if (lib.want_lto) |enabled| {
+            if (enabled) {
+                try cmds.append("-C");
+                try cmds.append("-lto=true");
+            } else {
+                try cmds.append("-C");
+                try cmds.append("-lto=off");
+            }
+        }
+    }
+
     const target = if (options.target.result.isDarwin())
         b.fmt("{s}-apple-darwin", .{@tagName(options.target.result.cpu.arch)})
     else if (options.target.result.isWasm())
@@ -408,11 +470,17 @@ pub fn rustcBuildStep(b: *std.Build, options: RsCompileStep) !*std.Build.Step.Ru
     else
         b.fmt("{s}-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
 
-    try cmds.append(b.fmt("--target={s}", .{target}));
+    try cmds.append("--target");
+    try cmds.append(target);
 
     // cpu model (e.g. "baseline")
-    if (options.target.query.isNative())
-        try cmds.append("-Ctarget-cpu=native");
+    if (options.target.query.isNative()) {
+        try cmds.append("-C");
+        try cmds.append("target-cpu=native");
+    } else {
+        try cmds.append("-C");
+        try cmds.append(b.fmt("target-cpu={s}", .{options.target.result.cpu.model.name}));
+    }
 
     const outputDir = switch (options.kind) {
         .lib => "lib",
@@ -421,13 +489,27 @@ pub fn rustcBuildStep(b: *std.Build, options: RsCompileStep) !*std.Build.Step.Ru
         .obj => "obj",
     };
 
-    // output directory and filename
-    try cmds.append(b.fmt("--out-dir={s}", .{b.pathJoin(&.{ b.install_prefix, outputDir })}));
+    // object file output (zig-cache/o/{hash_id}/*.o)
+    if (b.cache_root.path) |path| {
+        try cmds.append("-L");
+        try cmds.append(b.fmt("dependency={s}", .{b.pathJoin(&.{ path, "o", &b.cache.hash.peek() })}));
+        try cmds.append("-C");
+        try cmds.append(b.fmt("incremental={s}", .{b.pathJoin(&.{ path, "o", &b.cache.hash.final() })}));
+    }
+
+    // output filename
+    try cmds.append(b.fmt("--out-dir={s}", .{b.pathJoin(&.{ b.install_path, outputDir })}));
     try cmds.append(b.fmt("--crate-name={s}", .{options.name}));
 
-    // run the command
+    // run the commands
     var rustc_exec = b.addSystemCommand(cmds.items);
     rustc_exec.setName(options.name);
+
+    if (!options.target.query.isNative()) {
+        const rustup_exec = b.addSystemCommand(&.{ rustup, "target", "add", target });
+        rustup_exec.setName("rustup");
+        rustc_exec.step.dependOn(&rustup_exec.step);
+    }
 
     if (options.artifact) |lib| {
         rustc_exec.addArtifactArg(lib);
@@ -444,7 +526,8 @@ pub fn rustcBuildStep(b: *std.Build, options: RsCompileStep) !*std.Build.Step.Ru
 
     return rustc_exec;
 }
-pub const RsCompileStep = struct {
+
+pub const RustCompileStep = struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode = .Debug,
     kind: std.Build.Step.Compile.Kind = .exe,
@@ -455,14 +538,14 @@ pub const RsCompileStep = struct {
     name: []const u8,
     rs_packages: ?[]const []const u8 = null,
     artifact: ?*std.Build.Step.Compile = null,
-    edition: rust_edition = .ed2021,
+    edition: rustEdition = .@"2021",
 };
 
-const rust_edition = enum {
-    ed2015,
-    ed2018,
-    ed2021,
-    ed2024,
+pub const rustEdition = enum {
+    @"2015",
+    @"2018",
+    @"2021",
+    @"2024",
 };
 
 fn rootPath() []const u8 {

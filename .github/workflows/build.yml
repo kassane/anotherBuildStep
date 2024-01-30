@@ -24,4 +24,4 @@ jobs:
             override: true
 
       - name: Build Summary
-        run: zig build --summary all
+        run: zig build --summary all --verbose

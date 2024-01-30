@@ -13,6 +13,10 @@
 ## Required
 
 - [zig](https://ziglang.org/download) v0.12.0 or master
+
+
+## Supported
+
 - [ldc2](https://ldc-developers.github.io/) v1.36.0 or latest-CI
 - [rustc](https://www.rust-lang.org/tools/install) stable or nightly
 
@@ -26,7 +30,7 @@ In project folder, add this package, as dependency on your `build.zig.zon`
 ```bash
 $ zig fetch --save git+https://github.com/kassane/anotherBuildStep#{commit-tag}
 ```
-- add `const anotherBuildStep = @import("anotherBuildStep")` to `build.zig`
+- add `@import("anotherBuildStep")` to `build.zig`
 
 ```zig
 const std = @import("std");
@@ -46,5 +50,19 @@ pub fn build(b: *std.Build) !void {
         },
     });
     b.default_step.dependOn(&exe.step);
+
+    // or
+
+    const exeRust = try rustcBuildStep(b, .{
+        .name = "hellors",
+        .target = target,
+        .optimize = optimize,
+        .source = "src/main.rs",
+        .rflags = &.{
+            "-C",
+            "panic=abort",
+        },
+    });
+    b.default_step.dependOn(&exeRust.step);
 }
 ```
