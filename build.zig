@@ -121,10 +121,10 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     var objpath: []const u8 = undefined; // needed for wasm build
     if (b.cache_root.path) |path| {
         // immutable state hash
-        objpath = b.pathJoin(&.{ path, "o", &b.cache.hash.peek() });
+        objpath = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() });
         try cmds.append(b.fmt("-od={s}", .{objpath}));
         // mutable state hash (ldc2 cache - llvm-ir2obj)
-        try cmds.append(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.cache.hash.final() })}));
+        try cmds.append(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
     }
     // name object files uniquely (so the files don't collide)
     try cmds.append("-oq");
@@ -311,7 +311,7 @@ pub const DCompileStep = struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode = .Debug,
     kind: std.Build.Step.Compile.Kind = .exe,
-    linkage: std.Build.Step.Compile.Linkage = .static,
+    linkage: std.builtin.LinkMode = .static,
     betterC: bool = false,
     sources: []const []const u8,
     dflags: []const []const u8,
@@ -492,9 +492,9 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
     // object file output (zig-cache/o/{hash_id}/*.o)
     if (b.cache_root.path) |path| {
         try cmds.append("-L");
-        try cmds.append(b.fmt("dependency={s}", .{b.pathJoin(&.{ path, "o", &b.cache.hash.peek() })}));
+        try cmds.append(b.fmt("dependency={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() })}));
         try cmds.append("-C");
-        try cmds.append(b.fmt("incremental={s}", .{b.pathJoin(&.{ path, "o", &b.cache.hash.final() })}));
+        try cmds.append(b.fmt("incremental={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
     }
 
     // output filename
@@ -531,7 +531,7 @@ pub const RustCompileStep = struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode = .Debug,
     kind: std.Build.Step.Compile.Kind = .exe,
-    linkage: std.Build.Step.Compile.Linkage = .static,
+    linkage: std.builtin.LinkMode = .static,
     source: []const u8,
     rflags: []const []const u8,
     ldflags: ?[]const []const u8 = null,
