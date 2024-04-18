@@ -292,7 +292,22 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     ldc_exec.setName(options.name);
 
     if (options.artifact) |lib| {
-        ldc_exec.addArtifactArg(lib);
+        var it = options.lib_main.root_module.iterateDependencies(options.lib_main, false);
+        while (it.next()) |item| {
+            for (item.module.link_objects.items) |link_object| {
+                switch (link_object) {
+                    .other_step => |compile_step| {
+                        switch (compile_step.kind) {
+                            .lib => {
+                                ldc_exec.addArtifactArg(lib);
+                            },
+                            else => {},
+                        }
+                    },
+                    else => {},
+                }
+            }
+        }
     }
 
     const example_run = b.addSystemCommand(&.{b.pathJoin(&.{ b.install_path, outputDir, options.name })});
@@ -474,13 +489,8 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
     try cmds.append(target);
 
     // cpu model (e.g. "baseline")
-    if (options.target.query.isNative()) {
-        try cmds.append("-C");
-        try cmds.append("target-cpu=native");
-    } else {
-        try cmds.append("-C");
-        try cmds.append(b.fmt("target-cpu={s}", .{options.target.result.cpu.model.name}));
-    }
+    try cmds.append("-C");
+    try cmds.append(b.fmt("target-cpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
 
     const outputDir = switch (options.kind) {
         .lib => "lib",
@@ -512,7 +522,22 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
     }
 
     if (options.artifact) |lib| {
-        rustc_exec.addArtifactArg(lib);
+        var it = options.lib_main.root_module.iterateDependencies(options.lib_main, false);
+        while (it.next()) |item| {
+            for (item.module.link_objects.items) |link_object| {
+                switch (link_object) {
+                    .other_step => |compile_step| {
+                        switch (compile_step.kind) {
+                            .lib => {
+                                rustc_exec.addArtifactArg(lib);
+                            },
+                            else => {},
+                        }
+                    },
+                    else => {},
+                }
+            }
+        }
     }
 
     const example_run = b.addSystemCommand(&.{b.pathJoin(&.{ b.install_path, outputDir, options.name })});
