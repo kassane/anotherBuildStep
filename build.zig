@@ -101,7 +101,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
             try cmds.append("-boundscheck=safeonly");
         },
         .ReleaseFast => {
-            try cmds.append("-O3");
+            try cmds.append("-O");
             try cmds.append("-release");
             try cmds.append("-enable-inlining");
             try cmds.append("-boundscheck=off");
@@ -170,7 +170,6 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     }
 
     if (options.target.result.isWasm()) {
-        try cmds.append("--d-version=CarelessAlocation");
         try cmds.append("-L-allow-undefined");
     }
 
@@ -267,14 +266,15 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         b.fmt("{s}-unknown-unknown-wasm", .{@tagName(options.target.result.cpu.arch)})
     else if (options.target.result.isWasm() and options.target.result.os.tag == .wasi)
         b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+    else if (options.target.result.cpu.arch.isRISCV())
+        b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })
     else
         b.fmt("{s}-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
 
     try cmds.append(b.fmt("-mtriple={s}", .{mtriple}));
 
-    // cpu model (e.g. "baseline")
-    if (options.target.query.isNative())
-        try cmds.append(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.name}));
+    // cpu model (e.g. "generic" or )
+    try cmds.append(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
 
     const outputDir = switch (options.kind) {
         .lib => "lib",
