@@ -292,14 +292,15 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     ldc_exec.setName(options.name);
 
     if (options.artifact) |lib| {
-        var it = options.lib_main.root_module.iterateDependencies(options.lib_main, false);
+        ldc_exec.addArtifactArg(lib);
+        var it = lib.root_module.iterateDependencies(lib, false);
         while (it.next()) |item| {
             for (item.module.link_objects.items) |link_object| {
                 switch (link_object) {
                     .other_step => |compile_step| {
                         switch (compile_step.kind) {
                             .lib => {
-                                ldc_exec.addArtifactArg(lib);
+                                ldc_exec.addArtifactArg(compile_step);
                             },
                             else => {},
                         }
@@ -522,14 +523,15 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
     }
 
     if (options.artifact) |lib| {
-        var it = options.lib_main.root_module.iterateDependencies(options.lib_main, false);
+        rustc_exec.addArtifactArg(lib);
+        var it = lib.root_module.iterateDependencies(lib, false);
         while (it.next()) |item| {
             for (item.module.link_objects.items) |link_object| {
                 switch (link_object) {
                     .other_step => |compile_step| {
                         switch (compile_step.kind) {
                             .lib => {
-                                rustc_exec.addArtifactArg(lib);
+                                rustc_exec.addArtifactArg(compile_step);
                             },
                             else => {},
                         }
