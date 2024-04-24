@@ -25,22 +25,38 @@ pub fn main() !void {
         // not working on msvc target (nostdlib++)
         try cmds.append("-lunwind");
     }
-
     // LDC2 not setting triple targets on host build to cc/linker, except Apple (why?)
     var isNative = true;
     while (args.next()) |arg| {
         // MacOS M1/M2 target, replace aarch64 to arm64
-        if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-apple-{s}", .{ if (builtin.cpu.arch.isAARCH64()) "arm64" else @tagName(builtin.cpu.arch), @tagName(builtin.os.tag) }))) {
-            try cmds.append("native-native");
-            try cmds.append("-fapple-link-rtlib");
+        if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-apple-{s}", .{ if (builtin.cpu.arch.isAARCH64()) "arm64" else @tagName(builtin.cpu.arch), @tagName(builtin.os.tag) })) or std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-apple-darwin", .{@tagName(builtin.cpu.arch)}))) {
+            if (!isNative)
+                try cmds.append(std.fmt.comptimePrint("{s}-{s}", .{
+                    @tagName(builtin.cpu.arch),
+                    @tagName(builtin.os.tag),
+                }))
+            else
+                try cmds.append("native-native");
         } else if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-unknown-unknown-{s}", .{ @tagName(builtin.cpu.arch), @tagName(builtin.os.tag) }))) {
             // wasm32 or wasm64
             try cmds.append(std.fmt.comptimePrint("{s}-emscripten", .{@tagName(builtin.cpu.arch)}));
-        } else if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-unknown-{s}", .{ @tagName(builtin.cpu.arch), @tagName(builtin.os.tag) }))) {
-            try cmds.append(std.fmt.comptimePrint("{s}-{s}", .{ @tagName(builtin.cpu.arch), @tagName(builtin.os.tag) }));
+        } else if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-unknown-{s}", .{ @tagName(builtin.cpu.arch), if (builtin.os.tag == .freestanding) "elf" else @tagName(builtin.os.tag) }))) {
+            try cmds.append(std.fmt.comptimePrint("{s}-{s}", .{
+                @tagName(builtin.cpu.arch),
+                @tagName(builtin.os.tag),
+            }));
         } else if (std.mem.eql(u8, arg, "-target")) {
             isNative = false;
             try cmds.append(arg); // get "-target" flag
+        } else if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-pc-{s}-{s}", .{ @tagName(builtin.cpu.arch), @tagName(builtin.os.tag), @tagName(builtin.abi) }))) {
+            try cmds.append(std.fmt.comptimePrint("{s}-{s}-{s}", .{
+                @tagName(builtin.cpu.arch),
+                @tagName(builtin.os.tag),
+                @tagName(builtin.abi),
+            }));
+        } else if (std.mem.endsWith(u8, arg, ".cpp") or std.mem.endsWith(u8, arg, ".cc")) {
+            try cmds.append("-x");
+            try cmds.append("c++");
         } else {
             try cmds.append(arg);
         }
