@@ -187,7 +187,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         try cmds.append("-L--no-as-needed");
     }
     // LLD (not working in zld)
-    if (options.target.result.isDarwin() and !options.use_zigcc) {
+    if (options.target.result.isDarwin()) {
         // https://github.com/ldc-developers/ldc/issues/4501
         try cmds.append("-L-w"); // hide linker warnings
     }
