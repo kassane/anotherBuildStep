@@ -177,7 +177,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
 
     // linker flags
     //MS Linker
-    if (options.target.result.abi == .msvc and options.optimize == .Debug) {
+    if (options.target.result.abi == .msvc and options.optimize == .Debug and !options.use_zigcc) {
         try cmds.append("-L-lmsvcrtd");
         try cmds.append("-L/NODEFAULTLIB:libcmt.lib");
         try cmds.append("-L/NODEFAULTLIB:libvcruntime.lib");
@@ -187,7 +187,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         try cmds.append("-L--no-as-needed");
     }
     // LLD (not working in zld)
-    if (options.target.result.isDarwin()) {
+    if (options.target.result.isDarwin() and !options.use_zigcc) {
         // https://github.com/ldc-developers/ldc/issues/4501
         try cmds.append("-L-w"); // hide linker warnings
     }
