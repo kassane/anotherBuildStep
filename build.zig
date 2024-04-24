@@ -176,7 +176,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     // linker flags
     //MS Linker
     if (options.target.result.abi == .msvc and options.optimize == .Debug) {
-        try cmds.append("-L-lmsvctd");
+        try cmds.append("-L-lmsvcrtd");
     }
     // GNU LD
     if (options.target.result.os.tag == .linux) {
