@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) !void {
         .dflags = &.{
             "-w",
         },
+        .use_zigcc = true,
     });
     b.default_step.dependOn(&exeD.step);
 
@@ -24,6 +25,7 @@ pub fn build(b: *std.Build) !void {
             "-C",
             "panic=abort",
         },
+        .use_zigcc = true,
     });
     b.default_step.dependOn(&exeRust.step);
 }
@@ -181,7 +183,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         try cmds.append("-L/NODEFAULTLIB:libvcruntime.lib");
     }
     // GNU LD
-    if (options.target.result.os.tag == .linux) {
+    if (options.target.result.os.tag == .linux and !options.use_zigcc) {
         try cmds.append("-L--no-as-needed");
     }
     // LLD (not working in zld)
@@ -315,6 +317,17 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     // run the command
     var ldc_exec = b.addSystemCommand(cmds.items);
     ldc_exec.setName(options.name);
+
+    if (options.use_zigcc) {
+        const zcc = buildZigCC(b);
+        const install = b.addInstallArtifact(zcc, .{ .dest_dir = .{ .override = .{ .custom = "tools" } } });
+        const zcc_path = b.pathJoin(&.{ b.install_prefix, "tools", if (options.target.result.os.tag == .windows) "zcc.exe" else "zcc" });
+        const zcc_exists = !std.meta.isError(std.fs.accessAbsolute(zcc_path, .{}));
+        if (!zcc_exists)
+            ldc_exec.step.dependOn(&install.step);
+        ldc_exec.addArg(b.fmt("--gcc={s}", .{zcc_path}));
+        ldc_exec.addArg(b.fmt("--linker={s}", .{zcc_path}));
+    }
 
     if (options.artifact) |lib| {
         ldc_exec.addArtifactArg(lib);
@@ -542,6 +555,17 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
     var rustc_exec = b.addSystemCommand(cmds.items);
     rustc_exec.setName(options.name);
 
+    if (options.use_zigcc) {
+        const zcc = buildZigCC(b);
+        const install = b.addInstallArtifact(zcc, .{ .dest_dir = .{ .override = .{ .custom = "tools" } } });
+        const zcc_path = b.pathJoin(&.{ b.install_prefix, "tools", if (options.target.result.os.tag == .windows) "zcc.exe" else "zcc" });
+        const zcc_exists = !std.meta.isError(std.fs.accessAbsolute(zcc_path, .{}));
+        if (!zcc_exists)
+            rustc_exec.step.dependOn(&install.step);
+        rustc_exec.addArg("-C");
+        rustc_exec.addArg(b.fmt("linker={s}", .{zcc_path}));
+    }
+
     if (!options.target.query.isNative()) {
         const rustup_exec = b.addSystemCommand(&.{ rustup, "target", "add", target });
         rustup_exec.setName("rustup");
@@ -592,6 +616,7 @@ pub const RustCompileStep = struct {
     rs_packages: ?[]const []const u8 = null,
     artifact: ?*std.Build.Step.Compile = null,
     edition: rustEdition = .@"2021",
+    use_zigcc: bool = false,
 };
 
 pub const rustEdition = enum {
@@ -603,4 +628,16 @@ pub const rustEdition = enum {
 
 fn rootPath() []const u8 {
     return std.fs.path.dirname(@src().file) orelse ".";
+}
+
+pub fn buildZigCC(b: *std.Build) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = "zcc",
+        .target = b.host,
+        .optimize = .ReleaseSafe,
+        .root_source_file = .{
+            .path = "tools/zigcc.zig",
+        },
+    });
+    return exe;
 }
