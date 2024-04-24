@@ -174,6 +174,10 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     }
 
     // linker flags
+    //MS Linker
+    if (options.target.result.abi == .msvc and options.optimize == .Debug) {
+        try cmds.append("-L-lmsvctd");
+    }
     // GNU LD
     if (options.target.result.os.tag == .linux) {
         try cmds.append("-L--no-as-needed");
@@ -194,9 +198,11 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     }
 
     if (options.artifact) |lib| {
-        if (lib.linkage == .dynamic or options.linkage == .dynamic) {
-            // linking the druntime/Phobos as dynamic libraries
-            try cmds.append("-link-defaultlib-shared");
+        if (!std.mem.eql(u8, ldc, "dmd")) {
+            if (lib.linkage == .dynamic or options.linkage == .dynamic) {
+                // linking the druntime/Phobos as dynamic libraries
+                try cmds.append("-link-defaultlib-shared");
+            }
         }
 
         // C include path
