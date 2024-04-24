@@ -31,7 +31,14 @@ pub fn build(b: *std.Build) !void {
 // Use LDC2 (https://github.com/ldc-developers/ldc) to compile the D examples
 pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     // ldmd2: ldc2 wrapped w/ dmd flags
-    const ldc = try b.findProgram(&.{"ldmd2"}, &.{});
+    const ldc = try b.findProgram(&.{ "ldmd2", "dmd" }, &.{});
+
+    if (std.mem.eql(u8, ldc, "dmd")) {
+        switch (options.target.result.cpu.arch) {
+            .x86, .x86_64 => {},
+            else => @panic("DMD: Intel/AMD CPU only!"),
+        }
+    }
 
     var cmds = std.ArrayList([]const u8).init(b.allocator);
     defer cmds.deinit();
@@ -84,8 +91,10 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     switch (options.optimize) {
         .Debug => {
             try cmds.append("-debug");
-            try cmds.append("-d-debug");
-            try cmds.append("-gc"); // debuginfo for non D dbg
+            if (!std.mem.eql(u8, ldc, "dmd"))
+                try cmds.append("-d-debug");
+            if (!std.mem.eql(u8, ldc, "dmd"))
+                try cmds.append("-gc"); // debuginfo for non D dbg
             try cmds.append("-g"); // debuginfo for D dbg
             try cmds.append("-gf");
             try cmds.append("-gs");
@@ -124,21 +133,27 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         objpath = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() });
         try cmds.append(b.fmt("-od={s}", .{objpath}));
         // mutable state hash (ldc2 cache - llvm-ir2obj)
-        try cmds.append(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
+        if (!std.mem.eql(u8, ldc, "dmd"))
+            try cmds.append(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
     }
     // name object files uniquely (so the files don't collide)
-    try cmds.append("-oq");
+    if (!std.mem.eql(u8, ldc, "dmd"))
+        try cmds.append("-oq");
 
     // remove object files after success build, and put them in a unique temp directory
-    if (options.kind != .obj)
-        try cmds.append("-cleanup-obj");
+    if (!std.mem.eql(u8, ldc, "dmd")) {
+        if (options.kind != .obj)
+            try cmds.append("-cleanup-obj");
+    }
 
     // disable LLVM-IR verifier
     // https://llvm.org/docs/Passes.html#verify-module-verifier
-    try cmds.append("-disable-verify");
+    if (!std.mem.eql(u8, ldc, "dmd"))
+        try cmds.append("-disable-verify");
 
     // keep all function bodies in .di files
-    try cmds.append("-Hkeep-all-bodies");
+    if (!std.mem.eql(u8, ldc, "dmd"))
+        try cmds.append("-Hkeep-all-bodies");
 
     // automatically finds needed library files and builds
     try cmds.append("-i");
@@ -259,22 +274,24 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
             if (enabled) try cmds.append("--flto=full");
     }
 
-    // ldc2 doesn't support zig native (a.k.a: native-native or native)
-    const mtriple = if (options.target.result.isDarwin())
-        b.fmt("{s}-apple-{s}", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
-    else if (options.target.result.isWasm())
-        b.fmt("{s}-unknown-unknown-wasm", .{@tagName(options.target.result.cpu.arch)})
-    else if (options.target.result.isWasm() and options.target.result.os.tag == .wasi)
-        b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
-    else if (options.target.result.cpu.arch.isRISCV())
-        b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })
-    else
-        b.fmt("{s}-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
+    if (!std.mem.eql(u8, ldc, "dmd")) {
+        // ldc2 doesn't support zig native (a.k.a: native-native or native)
+        const mtriple = if (options.target.result.isDarwin())
+            b.fmt("{s}-apple-{s}", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+        else if (options.target.result.isWasm())
+            b.fmt("{s}-unknown-unknown-wasm", .{@tagName(options.target.result.cpu.arch)})
+        else if (options.target.result.isWasm() and options.target.result.os.tag == .wasi)
+            b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+        else if (options.target.result.cpu.arch.isRISCV())
+            b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })
+        else
+            b.fmt("{s}-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
 
-    try cmds.append(b.fmt("-mtriple={s}", .{mtriple}));
+        try cmds.append(b.fmt("-mtriple={s}", .{mtriple}));
 
-    // cpu model (e.g. "generic" or )
-    try cmds.append(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
+        // cpu model (e.g. "generic" or )
+        try cmds.append(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
+    }
 
     const outputDir = switch (options.kind) {
         .lib => "lib",
@@ -335,6 +352,7 @@ pub const DCompileStep = struct {
     name: []const u8,
     d_packages: ?[]const []const u8 = null,
     artifact: ?*std.Build.Step.Compile = null,
+    use_zigcc: bool = false,
 };
 
 // Rustc support
