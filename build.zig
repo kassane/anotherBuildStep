@@ -33,14 +33,7 @@ pub fn build(b: *std.Build) !void {
 // Use LDC2 (https://github.com/ldc-developers/ldc) to compile the D examples
 pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     // ldmd2: ldc2 wrapped w/ dmd flags
-    const ldc = try b.findProgram(&.{ "ldmd2", "dmd" }, &.{});
-
-    if (std.mem.eql(u8, ldc, "dmd")) {
-        switch (options.target.result.cpu.arch) {
-            .x86, .x86_64 => {},
-            else => @panic("DMD: Intel/AMD CPU only!"),
-        }
-    }
+    const ldc = try b.findProgram(&.{"ldmd2"}, &.{});
 
     var cmds = std.ArrayList([]const u8).init(b.allocator);
     defer cmds.deinit();
@@ -93,10 +86,8 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     switch (options.optimize) {
         .Debug => {
             try cmds.append("-debug");
-            if (!std.mem.eql(u8, ldc, "dmd"))
-                try cmds.append("-d-debug");
-            if (!std.mem.eql(u8, ldc, "dmd"))
-                try cmds.append("-gc"); // debuginfo for non D dbg
+            try cmds.append("-d-debug");
+            try cmds.append("-gc"); // debuginfo for non D dbg
             try cmds.append("-g"); // debuginfo for D dbg
             try cmds.append("-gf");
             try cmds.append("-gs");
@@ -135,27 +126,26 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         objpath = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() });
         try cmds.append(b.fmt("-od={s}", .{objpath}));
         // mutable state hash (ldc2 cache - llvm-ir2obj)
-        if (!std.mem.eql(u8, ldc, "dmd"))
-            try cmds.append(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
+        try cmds.append(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
     }
     // name object files uniquely (so the files don't collide)
-    if (!std.mem.eql(u8, ldc, "dmd"))
-        try cmds.append("-oq");
+
+    try cmds.append("-oq");
 
     // remove object files after success build, and put them in a unique temp directory
-    if (!std.mem.eql(u8, ldc, "dmd")) {
+    {
         if (options.kind != .obj)
             try cmds.append("-cleanup-obj");
     }
 
     // disable LLVM-IR verifier
     // https://llvm.org/docs/Passes.html#verify-module-verifier
-    if (!std.mem.eql(u8, ldc, "dmd"))
-        try cmds.append("-disable-verify");
+
+    try cmds.append("-disable-verify");
 
     // keep all function bodies in .di files
-    if (!std.mem.eql(u8, ldc, "dmd"))
-        try cmds.append("-Hkeep-all-bodies");
+
+    try cmds.append("-Hkeep-all-bodies");
 
     // automatically finds needed library files and builds
     try cmds.append("-i");
@@ -202,7 +192,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     }
 
     if (options.artifact) |lib| {
-        if (!std.mem.eql(u8, ldc, "dmd")) {
+        {
             if (lib.linkage == .dynamic or options.linkage == .dynamic) {
                 // linking the druntime/Phobos as dynamic libraries
                 try cmds.append("-link-defaultlib-shared");
@@ -222,9 +212,9 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         }
 
         // library paths
-        for (lib.root_module.lib_paths.items) |libpath| {
-            if (libpath.path.len > 0) // skip empty paths
-                try cmds.append(b.fmt("-L-L{s}", .{libpath.path}));
+        for (lib.root_module.lib_paths.items) |libDir| {
+            if (libDir.getPath(b).len > 0) // skip empty paths
+                try cmds.append(b.fmt("-L-L{s}", .{libDir.getPath(b)}));
         }
 
         // link system libs
@@ -284,7 +274,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
             if (enabled) try cmds.append("--flto=full");
     }
 
-    if (!std.mem.eql(u8, ldc, "dmd")) {
+    {
         // ldc2 doesn't support zig native (a.k.a: native-native or native)
         const mtriple = if (options.target.result.isDarwin())
             b.fmt("{s}-apple-{s}", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
@@ -461,9 +451,9 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
     if (options.artifact) |lib| {
 
         // library paths
-        for (lib.root_module.lib_paths.items) |libpath| {
-            if (libpath.path.len > 0) // skip empty paths
-                try cmds.append(b.fmt("-L{s}", .{libpath.path}));
+        for (lib.root_module.lib_paths.items) |libDir| {
+            if (libDir.getPath(b).len > 0) // skip empty paths
+                try cmds.append(b.fmt("-L{s}", .{libDir.getPath(b)}));
         }
 
         // link system libs
@@ -635,9 +625,7 @@ pub fn buildZigCC(b: *std.Build) *std.Build.Step.Compile {
         .name = "zcc",
         .target = b.host,
         .optimize = .ReleaseSafe,
-        .root_source_file = .{
-            .path = "tools/zigcc.zig",
-        },
+        .root_source_file = .{ .cwd_relative = b.fmt("{s}/tools/zigcc.zig", .{rootPath()}) },
     });
     return exe;
 }
