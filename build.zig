@@ -35,39 +35,39 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     // ldmd2: ldc2 wrapped w/ dmd flags
     const ldc = try b.findProgram(&.{"ldmd2"}, &.{});
 
-    var cmds = std.ArrayList([]const u8).init(b.allocator);
-    defer cmds.deinit();
-
     // D compiler
-    try cmds.append(ldc);
+    var ldc_exec = b.addSystemCommand(&.{ldc});
+    ldc_exec.setName(options.name);
 
     // set kind of build
     switch (options.kind) {
-        .@"test" => {
-            try cmds.append("-unittest");
-            try cmds.append("-main");
-        },
-        .obj => try cmds.append("-c"),
+        .@"test" => ldc_exec.addArgs(&.{
+            "-unittest",
+            "-main",
+        }),
+        .obj => ldc_exec.addArg("-c"),
         else => {},
     }
 
     if (options.kind == .lib) {
         if (options.linkage == .dynamic) {
-            try cmds.append("-shared");
+            ldc_exec.addArg("-shared");
             if (options.target.result.os.tag == .windows) {
-                try cmds.append("-fvisibility=public");
-                try cmds.append("--dllimport=all");
+                ldc_exec.addArgs(&.{
+                    "-fvisibility=public",
+                    "--dllimport=all",
+                });
             }
         } else {
-            try cmds.append("-lib");
+            ldc_exec.addArg("-lib");
             if (options.target.result.os.tag == .windows)
-                try cmds.append("--dllimport=defaultLibsOnly");
-            try cmds.append("-fvisibility=hidden");
+                ldc_exec.addArg("--dllimport=defaultLibsOnly");
+            ldc_exec.addArg("-fvisibility=hidden");
         }
     }
 
     for (options.dflags) |dflag| {
-        try cmds.append(dflag);
+        ldc_exec.addArg(dflag);
     }
 
     if (options.ldflags) |ldflags| {
@@ -75,127 +75,127 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
             if (ldflag[0] == '-') {
                 @panic("ldflags: add library name only!");
             }
-            try cmds.append(b.fmt("-L-l{s}", .{ldflag}));
+            ldc_exec.addArg(b.fmt("-L-l{s}", .{ldflag}));
         }
     }
 
     // betterC disable druntime and phobos
     if (options.betterC)
-        try cmds.append("-betterC");
+        ldc_exec.addArg("-betterC");
 
     switch (options.optimize) {
-        .Debug => {
-            try cmds.append("-debug");
-            try cmds.append("-d-debug");
-            try cmds.append("-gc"); // debuginfo for non D dbg
-            try cmds.append("-g"); // debuginfo for D dbg
-            try cmds.append("-gf");
-            try cmds.append("-gs");
-            try cmds.append("-vgc");
-            try cmds.append("-vtls");
-            try cmds.append("-verrors=context");
-            try cmds.append("-boundscheck=on");
-        },
-        .ReleaseSafe => {
-            try cmds.append("-O3");
-            try cmds.append("-release");
-            try cmds.append("-enable-inlining");
-            try cmds.append("-boundscheck=safeonly");
-        },
-        .ReleaseFast => {
-            try cmds.append("-O");
-            try cmds.append("-release");
-            try cmds.append("-enable-inlining");
-            try cmds.append("-boundscheck=off");
-        },
-        .ReleaseSmall => {
-            try cmds.append("-Oz");
-            try cmds.append("-release");
-            try cmds.append("-enable-inlining");
-            try cmds.append("-boundscheck=off");
-        },
+        .Debug => ldc_exec.addArgs(&.{
+            "-debug",
+            "-d-debug",
+            "-gc",
+            "-g",
+            "-gf",
+            "-gs",
+            "-vgc",
+            "-vtls",
+            "-verrors=context",
+            "-boundscheck=on",
+        }),
+        .ReleaseSafe => ldc_exec.addArgs(&.{
+            "-O3",
+            "-release",
+            "-enable-inlining",
+            "-boundscheck=safeonly",
+        }),
+        .ReleaseFast => ldc_exec.addArgs(&.{
+            "-O",
+            "-release",
+            "-enable-inlining",
+            "-boundscheck=off",
+        }),
+        .ReleaseSmall => ldc_exec.addArgs(&.{
+            "-Oz",
+            "-release",
+            "-enable-inlining",
+            "-boundscheck=off",
+        }),
     }
 
     // Print character (column) numbers in diagnostics
-    try cmds.append("-vcolumns");
+    ldc_exec.addArg("-vcolumns");
 
     // object file output (zig-cache/o/{hash_id}/*.o)
     var objpath: []const u8 = undefined; // needed for wasm build
     if (b.cache_root.path) |path| {
         // immutable state hash
         objpath = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() });
-        try cmds.append(b.fmt("-od={s}", .{objpath}));
+        ldc_exec.addArg(b.fmt("-od={s}", .{objpath}));
         // mutable state hash (ldc2 cache - llvm-ir2obj)
-        try cmds.append(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
+        ldc_exec.addArg(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
     }
     // name object files uniquely (so the files don't collide)
 
-    try cmds.append("-oq");
+    ldc_exec.addArg("-oq");
 
     // remove object files after success build, and put them in a unique temp directory
     {
         if (options.kind != .obj)
-            try cmds.append("-cleanup-obj");
+            ldc_exec.addArg("-cleanup-obj");
     }
 
     // disable LLVM-IR verifier
     // https://llvm.org/docs/Passes.html#verify-module-verifier
 
-    try cmds.append("-disable-verify");
+    ldc_exec.addArg("-disable-verify");
 
     // keep all function bodies in .di files
 
-    try cmds.append("-Hkeep-all-bodies");
+    ldc_exec.addArg("-Hkeep-all-bodies");
 
     // automatically finds needed library files and builds
-    try cmds.append("-i");
+    ldc_exec.addArg("-i");
 
     // sokol include path
-    try cmds.append(b.fmt("-I{s}", .{b.pathJoin(&.{ rootPath(), "src" })}));
+    ldc_exec.addArg(b.fmt("-I{s}", .{b.pathJoin(&.{ rootPath(), "src" })}));
 
     // D-packages include path
     if (options.d_packages) |d_packages| {
         for (d_packages) |pkg| {
-            try cmds.append(b.fmt("-I{s}", .{pkg}));
+            ldc_exec.addArg(b.fmt("-I{s}", .{pkg}));
         }
     }
 
     // D Source files
     for (options.sources) |src| {
-        try cmds.append(src);
+        ldc_exec.addArg(src);
     }
 
     // linker flags
     //MS Linker
     if (options.target.result.abi == .msvc and options.optimize == .Debug and !options.use_zigcc) {
-        try cmds.append("-L-lmsvcrtd");
-        try cmds.append("-L/NODEFAULTLIB:libcmt.lib");
-        try cmds.append("-L/NODEFAULTLIB:libvcruntime.lib");
+        ldc_exec.addArg("-L-lmsvcrtd");
+        ldc_exec.addArg("-L/NODEFAULTLIB:libcmt.lib");
+        ldc_exec.addArg("-L/NODEFAULTLIB:libvcruntime.lib");
     }
     // GNU LD
     if (options.target.result.os.tag == .linux and !options.use_zigcc) {
-        try cmds.append("-L--no-as-needed");
+        ldc_exec.addArg("-L--no-as-needed");
     }
     // LLD (not working in zld)
     if (options.target.result.isDarwin()) {
         // https://github.com/ldc-developers/ldc/issues/4501
-        try cmds.append("-L-w"); // hide linker warnings
+        ldc_exec.addArg("-L-w"); // hide linker warnings
     }
 
     if (options.target.result.isWasm()) {
-        try cmds.append("-L-allow-undefined");
+        ldc_exec.addArg("-L-allow-undefined");
     }
 
     if (b.verbose) {
-        try cmds.append("-vdmd");
-        try cmds.append("-Xcc=-v");
+        ldc_exec.addArg("-vdmd");
+        ldc_exec.addArg("-Xcc=-v");
     }
 
     if (options.artifact) |lib| {
         {
             if (lib.linkage == .dynamic or options.linkage == .dynamic) {
                 // linking the druntime/Phobos as dynamic libraries
-                try cmds.append("-link-defaultlib-shared");
+                ldc_exec.addArg("-link-defaultlib-shared");
             }
         }
 
@@ -208,20 +208,20 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
                 include_dir.path_system.getPath(b)
             else
                 include_dir.path_after.getPath(b);
-            try cmds.append(b.fmt("-P-I{s}", .{path}));
+            ldc_exec.addArg(b.fmt("-P-I{s}", .{path}));
         }
 
         // library paths
         for (lib.root_module.lib_paths.items) |libDir| {
             if (libDir.getPath(b).len > 0) // skip empty paths
-                try cmds.append(b.fmt("-L-L{s}", .{libDir.getPath(b)}));
+                ldc_exec.addArg(b.fmt("-L-L{s}", .{libDir.getPath(b)}));
         }
 
         // link system libs
         for (lib.root_module.link_objects.items) |link_object| {
             if (link_object != .system_lib) continue;
             const system_lib = link_object.system_lib;
-            try cmds.append(b.fmt("-L-l{s}", .{system_lib.name}));
+            ldc_exec.addArg(b.fmt("-L-l{s}", .{system_lib.name}));
         }
         // C flags
         for (lib.root_module.link_objects.items) |link_object| {
@@ -229,49 +229,49 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
             const c_source_file = link_object.c_source_file;
             for (c_source_file.flags) |flag|
                 if (flag.len > 0) // skip empty flags
-                    try cmds.append(b.fmt("-Xcc={s}", .{flag}));
+                    ldc_exec.addArg(b.fmt("-Xcc={s}", .{flag}));
             break;
         }
         // C defines
         for (lib.root_module.c_macros.items) |cdefine| {
             if (cdefine.len > 0) // skip empty cdefines
-                try cmds.append(b.fmt("-P-D{s}", .{cdefine}));
+                ldc_exec.addArg(b.fmt("-P-D{s}", .{cdefine}));
             break;
         }
 
         if (lib.dead_strip_dylibs) {
-            try cmds.append("-L=-dead_strip");
+            ldc_exec.addArg("-L=-dead_strip");
         }
         // Darwin frameworks
         if (options.target.result.isDarwin()) {
             var it = lib.root_module.frameworks.iterator();
             while (it.next()) |framework| {
-                try cmds.append(b.fmt("-L-framework", .{}));
-                try cmds.append(b.fmt("-L{s}", .{framework.key_ptr.*}));
+                ldc_exec.addArg(b.fmt("-L-framework", .{}));
+                ldc_exec.addArg(b.fmt("-L{s}", .{framework.key_ptr.*}));
             }
         }
 
         if (lib.root_module.sanitize_thread) |tsan| {
             if (tsan)
-                try cmds.append("--fsanitize=thread");
+                ldc_exec.addArg("--fsanitize=thread");
         }
 
         // zig enable sanitize=undefined by default
         if (lib.root_module.sanitize_c) |ubsan| {
             if (ubsan)
-                try cmds.append("--fsanitize=address");
+                ldc_exec.addArg("--fsanitize=address");
         }
 
         if (lib.root_module.omit_frame_pointer) |enabled| {
             if (enabled)
-                try cmds.append("--frame-pointer=none")
+                ldc_exec.addArg("--frame-pointer=none")
             else
-                try cmds.append("--frame-pointer=all");
+                ldc_exec.addArg("--frame-pointer=all");
         }
 
         // link-time optimization
         if (lib.want_lto) |enabled|
-            if (enabled) try cmds.append("--flto=full");
+            if (enabled) ldc_exec.addArg("--flto=full");
     }
 
     {
@@ -287,10 +287,10 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         else
             b.fmt("{s}-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
 
-        try cmds.append(b.fmt("-mtriple={s}", .{mtriple}));
+        ldc_exec.addArg(b.fmt("-mtriple={s}", .{mtriple}));
 
         // cpu model (e.g. "generic" or )
-        try cmds.append(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
+        ldc_exec.addArg(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
     }
 
     const outputDir = switch (options.kind) {
@@ -302,11 +302,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
 
     // output file
     if (options.kind != .obj)
-        try cmds.append(b.fmt("-of={s}", .{b.pathJoin(&.{ b.install_prefix, outputDir, options.name })}));
-
-    // run the command
-    var ldc_exec = b.addSystemCommand(cmds.items);
-    ldc_exec.setName(options.name);
+        ldc_exec.addArg(b.fmt("-of={s}", .{b.pathJoin(&.{ b.install_prefix, outputDir, options.name })}));
 
     if (options.use_zigcc) {
         const zcc = buildZigCC(b);
@@ -321,22 +317,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
 
     if (options.artifact) |lib| {
         ldc_exec.addArtifactArg(lib);
-        var it = lib.root_module.iterateDependencies(lib, false);
-        while (it.next()) |item| {
-            for (item.module.link_objects.items) |link_object| {
-                switch (link_object) {
-                    .other_step => |compile_step| {
-                        switch (compile_step.kind) {
-                            .lib => {
-                                ldc_exec.addArtifactArg(compile_step);
-                            },
-                            else => {},
-                        }
-                    },
-                    else => {},
-                }
-            }
-        }
+        dependenciesIterator(lib, ldc_exec);
     }
 
     const example_run = b.addSystemCommand(&.{b.pathJoin(&.{ b.install_path, outputDir, options.name })});
@@ -377,58 +358,58 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
     defer cmds.deinit();
 
     // Rust compiler
-    try cmds.append("rustc");
+    var rustc_exec = b.addSystemCommand(&.{"rustc"});
+    rustc_exec.setName(options.name);
 
-    try cmds.append("--edition");
+    rustc_exec.addArg("--edition");
     switch (options.edition) {
-        .@"2015" => try cmds.append("2015"),
-        .@"2018" => try cmds.append("2018"),
-        .@"2021" => try cmds.append("2021"),
-        .@"2024" => try cmds.append("2024"),
+        .@"2015" => rustc_exec.addArg("2015"),
+        .@"2018" => rustc_exec.addArg("2018"),
+        .@"2021" => rustc_exec.addArg("2021"),
+        .@"2024" => rustc_exec.addArg("2024"),
     }
 
     // set kind of build
     switch (options.kind) {
-        .@"test" => try cmds.append("--test"),
-        .obj => try cmds.append("--emit=obj"),
-        .exe => try cmds.append("--crate-type=bin"),
+        .@"test" => rustc_exec.addArg("--test"),
+        .obj => rustc_exec.addArg("--emit=obj"),
+        .exe => rustc_exec.addArg("--crate-type=bin"),
         .lib => {
             if (options.linkage == .static)
-                try cmds.append("--crate-type=staticlib")
+                rustc_exec.addArg("--crate-type=staticlib")
             else
-                try cmds.append("--crate-type=dylib");
+                rustc_exec.addArg("--crate-type=dylib");
         },
     }
 
     // no bitcode
-    try cmds.append("-C");
-    try cmds.append("embed-bitcode=no");
+    rustc_exec.addArgs(&.{ "-C", "embed-bitcode=no" });
 
     switch (options.optimize) {
         .Debug => {
-            try cmds.append("-g");
+            rustc_exec.addArg("-g");
         },
-        .ReleaseSafe => {
-            try cmds.append("-C");
-            try cmds.append("opt-level=3");
-            try cmds.append("-C");
-            try cmds.append("embed-bitcode=no");
-        },
-        .ReleaseFast, .ReleaseSmall => {
-            try cmds.append("-C");
-            try cmds.append("opt-level=z");
-            try cmds.append("-C");
-            try cmds.append("strip=debuginfo");
-            try cmds.append("-C");
-            try cmds.append("strip=symbols");
-        },
+        .ReleaseSafe => rustc_exec.addArgs(&.{
+            "-C",
+            "opt-level=3",
+            "-C",
+            "embed-bitcode=no",
+        }),
+        .ReleaseFast, .ReleaseSmall => rustc_exec.addArgs(&.{
+            "-C",
+            "opt-level=z",
+            "-C",
+            "strip=debuginfo",
+            "-C",
+            "strip=symbols",
+        }),
     }
 
     if (b.verbose)
-        try cmds.append("-v");
+        rustc_exec.addArg("-v");
 
     for (options.rflags) |rflag| {
-        try cmds.append(rflag);
+        rustc_exec.addArg(rflag);
     }
 
     if (options.ldflags) |ldflags| {
@@ -436,16 +417,16 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
             if (ldflag[0] == '-') {
                 @panic("ldflags: add library name only!");
             }
-            try cmds.append(b.fmt("-l{s}", .{ldflag}));
+            rustc_exec.addArg(b.fmt("-l{s}", .{ldflag}));
         }
     }
 
     // Rust Source file
-    try cmds.append(options.source);
+    rustc_exec.addArg(options.source);
 
     // sysroot override
     if (b.sysroot) |sysroot_path| {
-        try cmds.append(b.fmt("--sysroot={s}", .{sysroot_path}));
+        rustc_exec.addArg(b.fmt("--sysroot={s}", .{sysroot_path}));
     }
 
     if (options.artifact) |lib| {
@@ -453,51 +434,49 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
         // library paths
         for (lib.root_module.lib_paths.items) |libDir| {
             if (libDir.getPath(b).len > 0) // skip empty paths
-                try cmds.append(b.fmt("-L{s}", .{libDir.getPath(b)}));
+                rustc_exec.addArg(b.fmt("-L{s}", .{libDir.getPath(b)}));
         }
 
         // link system libs
         for (lib.root_module.link_objects.items) |link_object| {
             if (link_object != .system_lib) continue;
             const system_lib = link_object.system_lib;
-            try cmds.append(b.fmt("-l{s}", .{system_lib.name}));
+            rustc_exec.addArg(b.fmt("-l{s}", .{system_lib.name}));
         }
 
         // Darwin frameworks
         if (options.target.result.isDarwin()) {
             var it = lib.root_module.frameworks.iterator();
             while (it.next()) |framework| {
-                try cmds.append(b.fmt("-L-framework", .{}));
-                try cmds.append(b.fmt("-L{s}", .{framework.key_ptr.*}));
+                rustc_exec.addArg(b.fmt("-L-framework", .{}));
+                rustc_exec.addArg(b.fmt("-L{s}", .{framework.key_ptr.*}));
             }
         }
 
         if (lib.root_module.sanitize_thread) |tsan| {
             if (tsan)
-                try cmds.append("--fsanitize=thread");
+                rustc_exec.addArg("--fsanitize=thread");
         }
 
         // zig enable sanitize=undefined by default
         if (lib.root_module.sanitize_c) |ubsan| {
             if (ubsan)
-                try cmds.append("--fsanitize=address");
+                rustc_exec.addArg("--fsanitize=address");
         }
 
         if (lib.root_module.omit_frame_pointer) |enabled| {
             if (enabled)
-                try cmds.append("--frame-pointer=none")
+                rustc_exec.addArg("--frame-pointer=none")
             else
-                try cmds.append("--frame-pointer=all");
+                rustc_exec.addArg("--frame-pointer=all");
         }
 
         // link-time optimization
         if (lib.want_lto) |enabled| {
             if (enabled) {
-                try cmds.append("-C");
-                try cmds.append("-lto=true");
+                rustc_exec.addArgs(&.{ "-C", "-lto=true" });
             } else {
-                try cmds.append("-C");
-                try cmds.append("-lto=off");
+                rustc_exec.addArgs(&.{ "-C", "-lto=false" });
             }
         }
     }
@@ -515,12 +494,11 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
     else
         b.fmt("{s}-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
 
-    try cmds.append("--target");
-    try cmds.append(target);
+    rustc_exec.addArgs(&.{ "--target", target });
 
     // cpu model (e.g. "baseline")
-    try cmds.append("-C");
-    try cmds.append(b.fmt("target-cpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
+    rustc_exec.addArg("-C");
+    rustc_exec.addArg(b.fmt("target-cpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
 
     const outputDir = switch (options.kind) {
         .lib => "lib",
@@ -531,19 +509,24 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
 
     // object file output (zig-cache/o/{hash_id}/*.o)
     if (b.cache_root.path) |path| {
-        try cmds.append("-L");
-        try cmds.append(b.fmt("dependency={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() })}));
-        try cmds.append("-C");
-        try cmds.append(b.fmt("incremental={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
+        rustc_exec.addArgs(&.{
+            "-L",
+            b.fmt("dependency={s}", .{b.pathJoin(&.{
+                path,
+                "o",
+                &b.graph.cache.hash.peek(),
+            })}),
+        });
+        rustc_exec.addArgs(&.{ "-C", b.fmt("incremental={s}", .{b.pathJoin(&.{
+            path,
+            "o",
+            &b.graph.cache.hash.final(),
+        })}) });
     }
 
     // output filename
-    try cmds.append(b.fmt("--out-dir={s}", .{b.pathJoin(&.{ b.install_path, outputDir })}));
-    try cmds.append(b.fmt("--crate-name={s}", .{options.name}));
-
-    // run the commands
-    var rustc_exec = b.addSystemCommand(cmds.items);
-    rustc_exec.setName(options.name);
+    rustc_exec.addArg(b.fmt("--out-dir={s}", .{b.pathJoin(&.{ b.install_path, outputDir })}));
+    rustc_exec.addArg(b.fmt("--crate-name={s}", .{options.name}));
 
     if (options.use_zigcc) {
         const zcc = buildZigCC(b);
@@ -552,8 +535,10 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
         const zcc_exists = !std.meta.isError(std.fs.accessAbsolute(zcc_path, .{}));
         if (!zcc_exists)
             rustc_exec.step.dependOn(&install.step);
-        rustc_exec.addArg("-C");
-        rustc_exec.addArg(b.fmt("linker={s}", .{zcc_path}));
+        rustc_exec.addArgs(&.{
+            "-C",
+            b.fmt("linker={s}", .{zcc_path}),
+        });
     }
 
     if (!options.target.query.isNative()) {
@@ -564,22 +549,7 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
 
     if (options.artifact) |lib| {
         rustc_exec.addArtifactArg(lib);
-        var it = lib.root_module.iterateDependencies(lib, false);
-        while (it.next()) |item| {
-            for (item.module.link_objects.items) |link_object| {
-                switch (link_object) {
-                    .other_step => |compile_step| {
-                        switch (compile_step.kind) {
-                            .lib => {
-                                rustc_exec.addArtifactArg(compile_step);
-                            },
-                            else => {},
-                        }
-                    },
-                    else => {},
-                }
-            }
-        }
+        dependenciesIterator(lib, rustc_exec);
     }
 
     const example_run = b.addSystemCommand(&.{b.pathJoin(&.{ b.install_path, outputDir, options.name })});
@@ -628,4 +598,23 @@ pub fn buildZigCC(b: *std.Build) *std.Build.Step.Compile {
         .root_source_file = .{ .cwd_relative = b.fmt("{s}/tools/zigcc.zig", .{rootPath()}) },
     });
     return exe;
+}
+
+fn dependenciesIterator(lib: *std.Build.Step.Compile, runner: *std.Build.Step.Run) void {
+    var it = lib.root_module.iterateDependencies(lib, false);
+    while (it.next()) |item| {
+        for (item.module.link_objects.items) |link_object| {
+            switch (link_object) {
+                .other_step => |compile_step| {
+                    switch (compile_step.kind) {
+                        .lib => {
+                            runner.addArtifactArg(compile_step);
+                        },
+                        else => {},
+                    }
+                },
+                else => {},
+            }
+        }
+    }
 }
