@@ -4,6 +4,7 @@ const builtin = @import("builtin");
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{ .default_target = if (builtin.os.tag == .windows) try std.Target.Query.parse(.{ .arch_os_abi = "native-windows-msvc" }) else .{} });
     const optimize = b.standardOptimizeOption(.{});
+
     const exeD = try ldcBuildStep(b, .{
         .name = "helloD",
         .target = target,
@@ -12,6 +13,7 @@ pub fn build(b: *std.Build) !void {
         .dflags = &.{
             "-w",
         },
+        .betterC = true,
         .use_zigcc = true,
     });
     b.default_step.dependOn(&exeD.step);
@@ -34,6 +36,9 @@ pub fn build(b: *std.Build) !void {
 pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     // ldmd2: ldc2 wrapped w/ dmd flags
     const ldc = try b.findProgram(&.{"ldmd2"}, &.{});
+
+    if (options.use_zigcc and options.use_lld)
+        @panic("link-internally overrides linker=zigcc");
 
     // D compiler
     var ldc_exec = b.addSystemCommand(&.{ldc});
@@ -76,6 +81,15 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
                 @panic("ldflags: add library name only!");
             }
             ldc_exec.addArg(b.fmt("-L-l{s}", .{ldflag}));
+        }
+    }
+
+    if (options.versions) |versions| {
+        for (versions) |version| {
+            if (version[0] == '-') {
+                @panic("versions: add version name only!");
+            }
+            ldc_exec.addArg(b.fmt("--d-version={s}", .{version}));
         }
     }
 
@@ -123,7 +137,7 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     var objpath: []const u8 = undefined; // needed for wasm build
     if (b.cache_root.path) |path| {
         // immutable state hash
-        objpath = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() });
+        objpath = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() });
         ldc_exec.addArg(b.fmt("-od={s}", .{objpath}));
         // mutable state hash (ldc2 cache - llvm-ir2obj)
         ldc_exec.addArg(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
@@ -166,6 +180,9 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     }
 
     // linker flags
+    if (options.use_lld) {
+        ldc_exec.addArg("-link-internally");
+    }
     //MS Linker
     if (options.target.result.abi == .msvc and options.optimize == .Debug and !options.use_zigcc) {
         ldc_exec.addArg("-L-lmsvcrtd");
@@ -173,17 +190,20 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         ldc_exec.addArg("-L/NODEFAULTLIB:libvcruntime.lib");
     }
     // GNU LD
-    if (options.target.result.os.tag == .linux and !options.use_zigcc) {
+    if (options.target.result.os.tag == .linux and !options.use_zigcc and !options.use_lld) {
         ldc_exec.addArg("-L--no-as-needed");
     }
     // LLD (not working in zld)
-    if (options.target.result.isDarwin()) {
+    if (options.target.result.isDarwin() and !options.use_zigcc) {
         // https://github.com/ldc-developers/ldc/issues/4501
         ldc_exec.addArg("-L-w"); // hide linker warnings
     }
 
     if (options.target.result.isWasm()) {
         ldc_exec.addArg("-L-allow-undefined");
+        // ldc2 enable use_lld by default on wasm target.
+        // Need use --no-entry
+        ldc_exec.addArg("-L--no-entry");
     }
 
     if (b.verbose) {
@@ -274,24 +294,27 @@ pub fn ldcBuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
             if (enabled) ldc_exec.addArg("--flto=full");
     }
 
-    {
-        // ldc2 doesn't support zig native (a.k.a: native-native or native)
-        const mtriple = if (options.target.result.isDarwin())
-            b.fmt("{s}-apple-{s}", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
-        else if (options.target.result.isWasm())
-            b.fmt("{s}-unknown-unknown-wasm", .{@tagName(options.target.result.cpu.arch)})
-        else if (options.target.result.isWasm() and options.target.result.os.tag == .wasi)
-            b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
-        else if (options.target.result.cpu.arch.isRISCV())
-            b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })
-        else
-            b.fmt("{s}-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
+    // ldc2 doesn't support zig native (a.k.a: native-native or native)
+    const mtriple = if (options.target.result.isDarwin())
+        b.fmt("{s}-apple-{s}", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+    else if (options.target.result.isWasm() and options.target.result.os.tag == .freestanding)
+        b.fmt("{s}-unknown-unknown-wasm", .{@tagName(options.target.result.cpu.arch)})
+    else if (options.target.result.isWasm())
+        b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+    else if (options.target.result.cpu.arch.isRISCV())
+        b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })
+    else
+        b.fmt("{s}-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
 
-        ldc_exec.addArg(b.fmt("-mtriple={s}", .{mtriple}));
+    ldc_exec.addArg(b.fmt("-mtriple={s}", .{mtriple}));
 
-        // cpu model (e.g. "generic" or )
-        ldc_exec.addArg(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
+    if (options.use_zigcc and !options.target.result.isDarwin()) {
+        ldc_exec.addArg("-Xcc=-target");
+        ldc_exec.addArg(b.fmt("-Xcc={s}", .{try options.target.result.zigTriple(b.allocator)}));
     }
+
+    // cpu model (e.g. "generic" or )
+    ldc_exec.addArg(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
 
     const outputDir = switch (options.kind) {
         .lib => "lib",
@@ -341,10 +364,12 @@ pub const DCompileStep = struct {
     sources: []const []const u8,
     dflags: []const []const u8,
     ldflags: ?[]const []const u8 = null,
+    versions: ?[]const []const u8 = null,
     name: []const u8,
     d_packages: ?[]const []const u8 = null,
     artifact: ?*std.Build.Step.Compile = null,
     use_zigcc: bool = false,
+    use_lld: bool = false,
 };
 
 // Rustc support

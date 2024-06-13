@@ -29,22 +29,18 @@ pub fn main() !void {
     var isNative = true;
     while (args.next()) |arg| {
         // MacOS M1/M2 target, replace aarch64 to arm64
-        if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-apple-{s}", .{ if (builtin.cpu.arch.isAARCH64()) "arm64" else @tagName(builtin.cpu.arch), @tagName(builtin.os.tag) })) or std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-apple-darwin", .{@tagName(builtin.cpu.arch)}))) {
+        if (std.mem.startsWith(u8, arg, "aarch64-apple-") or std.mem.startsWith(u8, arg, "arm64-apple-")) {
             if (!isNative)
-                try cmds.append(std.fmt.comptimePrint("{s}-{s}", .{
-                    @tagName(builtin.cpu.arch),
-                    @tagName(builtin.os.tag),
-                }))
+                try cmds.append("aarch64-macos")
             else
                 try cmds.append("native-native");
-        } else if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-unknown-unknown-{s}", .{ @tagName(builtin.cpu.arch), @tagName(builtin.os.tag) }))) {
-            // wasm32 or wasm64
-            try cmds.append(std.fmt.comptimePrint("{s}-emscripten", .{@tagName(builtin.cpu.arch)}));
-        } else if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-unknown-{s}", .{ @tagName(builtin.cpu.arch), if (builtin.os.tag == .freestanding) "elf" else @tagName(builtin.os.tag) }))) {
-            try cmds.append(std.fmt.comptimePrint("{s}-{s}", .{
-                @tagName(builtin.cpu.arch),
-                @tagName(builtin.os.tag),
-            }));
+        } else if (std.mem.startsWith(u8, arg, "x86_64-apple-")) {
+            if (!isNative)
+                try cmds.append("x86_64-macos")
+            else
+                try cmds.append("native-native");
+        } else if (std.mem.endsWith(u8, arg, "rv64gc") or std.mem.endsWith(u8, arg, "rv32i_zicsr_zifencei")) {
+            // NOT CHANGE!!
         } else if (std.mem.eql(u8, arg, "-target")) {
             isNative = false;
             try cmds.append(arg); // get "-target" flag
@@ -74,9 +70,10 @@ pub fn main() !void {
     var proc = std.process.Child.init(cmds.items, allocator);
 
     // See all flags
-    // std.debug.print("debug flags: ", .{});
-    // for (cmds.items) |cmd|
-    //     std.debug.print("{s} ", .{cmd});
+    std.debug.print("debug flags: ", .{});
+    for (cmds.items) |cmd|
+        std.debug.print("{s} ", .{cmd});
+    std.debug.print("\n", .{});
 
     _ = try proc.spawnAndWait();
 }
