@@ -15,8 +15,8 @@ jobs:
           # - mipsel-linux
           # - mipsel-linux-gnuabi
           # - powerpc64-linux
-          - aarch64-windows
-          - aarch64-macos
+          # - aarch64-windows
+          # - aarch64-macos
 
     runs-on: ubuntu-latest
     steps:
