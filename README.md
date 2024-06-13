@@ -1,4 +1,4 @@
-# anotherBuildStep [WiP]
+# anotherBuildStep (a.k.a ABS)
 
 ## Overview
 
@@ -12,12 +12,12 @@
 
 ## Required
 
-- [zig](https://ziglang.org/download) v0.12.0 or master
+- [zig](https://ziglang.org/download) v0.13.0 or master
 
 
 ## Supported
 
-- [ldc2](https://ldc-developers.github.io/) v1.36.0 or latest-CI
+- [ldc2](https://ldc-developers.github.io/) v1.38.0 or latest-CI
 - [rustc](https://www.rust-lang.org/tools/install) stable or nightly
 
 
@@ -28,7 +28,7 @@ Make new project or add to existing project:
 In project folder, add this package, as dependency on your `build.zig.zon`
 
 ```bash
-$ zig fetch --save git+https://github.com/kassane/anotherBuildStep#{commit-tag}
+$ zig fetch --save git+https://github.com/kassane/anotherBuildStep
 ```
 - add `@import("anotherBuildStep")` to `build.zig`
 
