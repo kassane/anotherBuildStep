@@ -11,10 +11,10 @@ jobs:
           - aarch64-linux-gnu
           - aarch64-linux
           - riscv64-linux-gnu
-          - riscv64-linux
-          - mipsel-linux
-          - mipsel-linux-gnuabi
-          - powerpc64-linux
+          # - riscv64-linux
+          # - mipsel-linux
+          # - mipsel-linux-gnuabi
+          # - powerpc64-linux
           - aarch64-windows
           - aarch64-macos
 

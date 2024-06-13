@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) !void {
         .dflags = &.{
             "-w",
         },
-        .betterC = true,
+        .betterC = if (target.query.isNative()) false else true,
         .use_zigcc = true,
     });
     b.default_step.dependOn(&exeD.step);
@@ -508,12 +508,12 @@ pub fn rustcBuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.
 
     const target = if (options.target.result.isDarwin())
         b.fmt("{s}-apple-darwin", .{@tagName(options.target.result.cpu.arch)})
-    else if (options.target.result.isWasm())
+    else if (options.target.result.isWasm() and options.target.result.os.tag == .freestanding)
         b.fmt("{s}-unknown-unknown", .{@tagName(options.target.result.cpu.arch)})
-    else if (options.target.result.isWasm() and options.target.result.os.tag == .emscripten)
+    else if (options.target.result.isWasm())
         b.fmt("{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
-    else if (options.target.result.isWasm() and options.target.result.os.tag == .wasi)
-        b.fmt("{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+    else if (options.target.result.cpu.arch.isRISCV())
+        b.fmt("{s}gc-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
     else if (options.target.result.os.tag == .windows)
         b.fmt("{s}-pc-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
     else
