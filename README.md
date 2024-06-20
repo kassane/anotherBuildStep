@@ -8,6 +8,7 @@
 
 - [x] ldc2 support
 - [x] rustc (no cargo) support
+- [x] flang-new support
 - [ ] ~~rustc (cargo) support~~ (need to figure out how to get the cargo build system to work)
 
 ## Required
@@ -18,6 +19,7 @@
 ## Supported
 
 - [ldc2](https://ldc-developers.github.io/) v1.38.0 or latest-CI
+- [flang](https://flang.llvm.org) (a.k.a flang-new) LLVM-18.1.3 or master [WiP]
 - [rustc](https://www.rust-lang.org/tools/install) stable or nightly
 
 
@@ -28,14 +30,15 @@ Make new project or add to existing project:
 In project folder, add this package, as dependency on your `build.zig.zon`
 
 ```bash
-$ zig fetch --save git+https://github.com/kassane/anotherBuildStep
+$ zig fetch --save=abs git+https://github.com/kassane/anotherBuildStep
 ```
 - add `@import("anotherBuildStep")` to `build.zig`
 
 ```zig
 const std = @import("std");
+
 // get build.zig from pkg to extend your build.zig project (only pub content module)
-const abs = @import("anotherBuildStep"); 
+const abs = @import("abs"); 
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -50,6 +53,20 @@ pub fn build(b: *std.Build) !void {
         },
     });
     b.default_step.dependOn(&exe.step);
+
+    // or
+
+    const exeFortran = try flang.BuildStep(b, .{
+        .name = "hellof",
+        .target = target,
+        .optimize = optimize,
+        .sources = &.{
+            "src/main.f90",
+        },
+        .fflags = &.{},
+        .use_zigcc = true,
+    });
+    b.default_step.dependOn(&exeFortran.step);
 
     // or
 

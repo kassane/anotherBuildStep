@@ -53,9 +53,29 @@ pub fn main() !void {
         } else if (std.mem.endsWith(u8, arg, ".cpp") or std.mem.endsWith(u8, arg, ".cc")) {
             try cmds.append("-x");
             try cmds.append("c++");
+        } else if (std.mem.endsWith(u8, arg, "gnu")) {
+            // NOT CHANGE!!
+        } else if (std.mem.startsWith(u8, arg, "--build-id")) {
+            // NOT CHANGE!!
+        } else if (std.mem.endsWith(u8, arg, "whole-archive")) {
+            // NOT CHANGE!!
+        } else if (std.mem.startsWith(u8, arg, "--eh-frame-hdr")) {
+            // NOT CHANGE!!
+        } else if (std.mem.endsWith(u8, arg, "as-needed")) {
+            // NOT CHANGE!!
+        } else if (std.mem.endsWith(u8, arg, "gcc") or std.mem.endsWith(u8, arg, "gcc_s")) {
+            // NOT CHANGE!!
+        } else if (std.mem.endsWith(u8, arg, "crtendS.o") or std.mem.endsWith(u8, arg, "crtn.o")) {
+            // NOT CHANGE!!
+        } else if (std.mem.endsWith(u8, arg, "crtbeginS.o") or std.mem.endsWith(u8, arg, "crti.o") or std.mem.endsWith(u8, arg, "Scrt1.o")) {
+            // NOT CHANGE!!
+        } else if (std.mem.startsWith(u8, arg, "-m") or std.mem.startsWith(u8, arg, "elf_")) {
+            // NOT CHANGE!!
         } else {
             try cmds.append(arg);
         }
+
+        //usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o /lib/x86_64-linux-gnu/crtn.o
     }
     // Why native? See: https://github.com/kassane/sokol-d/issues/1
     if (isNative) {
