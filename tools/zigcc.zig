@@ -24,29 +24,22 @@ pub fn main() !void {
     try cmds.append("zig");
     try cmds.append("cc");
 
-    if (builtin.os.tag != .windows) {
-        // not working on msvc target (nostdlib++)
-        try cmds.append("-lunwind");
-    }
-    // LDC2 not setting triple targets on host build to cc/linker, except Apple (why?)
-    var isNative = true;
+    // HACK ldmd2 flag for Darwin target
+    var target_count: usize = 0;
+
     while (args.next()) |arg| {
         // MacOS M1/M2 target, replace aarch64 to arm64
         if (std.mem.startsWith(u8, arg, "aarch64-apple-") or std.mem.startsWith(u8, arg, "arm64-apple-")) {
-            if (!isNative)
-                try cmds.append("aarch64-macos")
-            else
-                try cmds.append("native-native");
+            // NOT CHANGE!!
         } else if (std.mem.startsWith(u8, arg, "x86_64-apple-")) {
-            if (!isNative)
-                try cmds.append("x86_64-macos")
-            else
-                try cmds.append("native-native");
+            // NOT CHANGE!!
+        } else if (std.mem.startsWith(u8, arg, "-target")) {
+            target_count += 1;
+            if (target_count == 1) {
+                try cmds.append(arg); // add target flag
+            }
         } else if (std.mem.endsWith(u8, arg, "rv64gc") or std.mem.endsWith(u8, arg, "rv32i_zicsr_zifencei")) {
             // NOT CHANGE!!
-        } else if (std.mem.eql(u8, arg, "-target")) {
-            isNative = false;
-            try cmds.append(arg); // get "-target" flag
         } else if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-pc-{s}-{s}", .{ @tagName(builtin.cpu.arch), @tagName(builtin.os.tag), @tagName(builtin.abi) }))) {
             try cmds.append(std.fmt.comptimePrint("{s}-{s}-{s}", .{
                 @tagName(builtin.cpu.arch),
@@ -77,17 +70,17 @@ pub fn main() !void {
         } else {
             try cmds.append(arg); // add (compat) flag
         }
-
-        //usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o /lib/x86_64-linux-gnu/crtn.o
     }
-    // Why native? See: https://github.com/kassane/sokol-d/issues/1
-    if (isNative) {
+
+    if (target_count < 1) {
+        // by default, zig windows target is MinGW
         try cmds.append("-target");
-        if (builtin.os.tag == .windows)
-            try cmds.append("native-native-msvc")
-        else {
-            try cmds.append("native-native");
-        }
+        try cmds.append("native-native-msvc");
+    }
+
+    if (builtin.os.tag != .windows) {
+        // not working on msvc target (nostdlib++)
+        try cmds.append("-lunwind");
     }
 
     var proc = std.process.Child.init(cmds.items, allocator);

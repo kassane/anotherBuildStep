@@ -267,9 +267,15 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     ldc_exec.addArg(b.fmt("-mtriple={s}", .{mtriple}));
 
     if (options.use_zigcc) {
-        if (!options.target.result.isDarwin() or !options.target.query.isNative()) {
-            ldc_exec.addArg("-Xcc=-target");
-            ldc_exec.addArg(b.fmt("-Xcc={s}", .{try options.target.result.zigTriple(b.allocator)}));
+        ldc_exec.addArg("-Xcc=-target");
+        if (!options.target.query.isNative()) {
+            ldc_exec.addArg(b.fmt(
+                "-Xcc={s}",
+                .{try options.target.result.zigTriple(b.allocator)},
+            ));
+        } else {
+            // Xcc not working on Windows target
+            ldc_exec.addArg("-Xcc=native-native");
         }
     }
 
