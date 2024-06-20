@@ -7,8 +7,8 @@
 ## TODO
 
 - [x] ldc2 support
-- [x] rustc (no cargo) support
 - [x] flang-new support
+- [x] rustc (no cargo) support
 - [ ] ~~rustc (cargo) support~~ (need to figure out how to get the cargo build system to work)
 
 ## Required
@@ -38,7 +38,7 @@ $ zig fetch --save=abs git+https://github.com/kassane/anotherBuildStep
 const std = @import("std");
 // get build.zig from pkg to extend your build.zig project (only pub content module)
 const abs = @import("abs");
-const ldc = abs.d;
+const ldc2 = abs.ldc2;
 const flang = abs.flang;
 const rustc = abs.rust; 
 
@@ -46,16 +46,18 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     
-    const exe = try ldc.BuildStep(b, .{
+    const exeD = try ldc2.BuildStep(b, .{
         .name = "helloD",
         .target = target,
         .optimize = optimize,
-        .sources = &.{"src/main.d"},
+        .sources = &.{
+            "src/main.d",
+        },
         .dflags = &.{
             "-w",
         },
     });
-    b.default_step.dependOn(&exe.step);
+    b.default_step.dependOn(&exeD.step);
 
     // or
 

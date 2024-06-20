@@ -1,8 +1,10 @@
 const std = @import("std");
 const builtin = @import("builtin");
-pub const d = @import("config/ldmd2.zig");
-pub const flang = @import("config/flang.zig");
-pub const rust = @import("config/rust.zig");
+
+// toolchains modules
+pub const ldc2 = @import("toolchains/ldmd2.zig");
+pub const flang = @import("toolchains/flang.zig");
+pub const rust = @import("toolchains/rust.zig");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{
@@ -15,11 +17,13 @@ pub fn build(b: *std.Build) !void {
     });
     const optimize = b.standardOptimizeOption(.{});
 
-    const exeD = try d.BuildStep(b, .{
+    const exeD = try ldc2.BuildStep(b, .{
         .name = "helloD",
         .target = target,
         .optimize = optimize,
-        .sources = &.{"src/main.d"},
+        .sources = &.{
+            "examples/main.d",
+        },
         .dflags = &.{
             "-w",
         },
@@ -30,13 +34,12 @@ pub fn build(b: *std.Build) !void {
 
     // Wait SetupFortran (GH-action) add flang support
     // https://github.com/fortran-lang/setup-fortran/issues/12
-
     // const exeFortran = try flang.BuildStep(b, .{
     //     .name = "hellof",
     //     .target = target,
     //     .optimize = optimize,
     //     .sources = &.{
-    //         "src/main.f90",
+    //         "examples/main.f90",
     //     },
     //     .fflags = &.{},
     //     .use_zigcc = true,
@@ -47,7 +50,7 @@ pub fn build(b: *std.Build) !void {
         .name = "hellors",
         .target = target,
         .optimize = optimize,
-        .source = "src/main.rs",
+        .source = "examples/main.rs",
         .rflags = &.{
             "-C",
             "panic=abort",

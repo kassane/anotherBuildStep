@@ -2,8 +2,6 @@ extern (C) void main()
 {
     version (D_BetterC)
     {
-        pragma(printf)
-        extern (C) int printf(scope const(char)* fmt, scope...) @nogc nothrow;
         alias println = printf;
         println("D: Hello, world!\n");
     }
@@ -14,3 +12,6 @@ extern (C) void main()
         println("D: Hello, world!");
     }
 }
+
+pragma(printf)
+extern (C) int printf(scope const(char)* fmt, scope...) @nogc nothrow;

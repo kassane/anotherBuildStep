@@ -22,6 +22,11 @@ jobs:
             profile: minimal
             toolchain: nightly
             override: true
+      # - uses: fortran-lang/setup-fortran@v1
+      #   id: setup-fortran
+      #   with:
+      #     compiler: flang
+      #     version: 19
 
       - name: Build Summary
         run: zig build --summary all --verbose
