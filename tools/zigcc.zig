@@ -90,10 +90,10 @@ pub fn main() !void {
     var proc = std.process.Child.init(cmds.items, allocator);
 
     // See all flags
-    // std.debug.print("debug flags: ", .{});
-    // for (cmds.items) |cmd|
-    //     std.debug.print("{s} ", .{cmd});
-    // std.debug.print("\n", .{});
+    std.debug.print("[zig cc] flags: ", .{});
+    for (cmds.items) |cmd|
+        std.debug.print("{s} ", .{cmd});
+    std.debug.print("\n", .{});
 
     _ = try proc.spawnAndWait();
 }
