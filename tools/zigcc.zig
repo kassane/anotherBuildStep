@@ -5,6 +5,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+// [NOT CHANGE!!] => skip flag
+// replace system-provider resources to zig provider resources
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = std.debug.assert(gpa.deinit() == .ok); // ok or leak
@@ -72,7 +75,7 @@ pub fn main() !void {
         } else if (std.mem.startsWith(u8, arg, "-m") or std.mem.startsWith(u8, arg, "elf_")) {
             // NOT CHANGE!!
         } else {
-            try cmds.append(arg);
+            try cmds.append(arg); // add (compat) flag
         }
 
         //usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o /lib/x86_64-linux-gnu/crtn.o
@@ -90,10 +93,14 @@ pub fn main() !void {
     var proc = std.process.Child.init(cmds.items, allocator);
 
     // See all flags
-    std.debug.print("[zig cc] flags: ", .{});
-    for (cmds.items) |cmd|
+    std.debug.print("[zig cc] flags: \"", .{});
+    for (cmds.items) |cmd| {
+        // skip 'zig cc'
+        if (std.mem.startsWith(u8, cmd, "zig")) continue;
+        if (std.mem.startsWith(u8, cmd, "cc")) continue;
         std.debug.print("{s} ", .{cmd});
-    std.debug.print("\n", .{});
+    }
+    std.debug.print("\"\n", .{});
 
     _ = try proc.spawnAndWait();
 }

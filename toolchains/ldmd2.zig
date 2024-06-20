@@ -266,9 +266,11 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
 
     ldc_exec.addArg(b.fmt("-mtriple={s}", .{mtriple}));
 
-    if ((options.use_zigcc and !options.target.query.isNative()) and !options.target.result.isDarwin()) {
-        ldc_exec.addArg("-Xcc=-target");
-        ldc_exec.addArg(b.fmt("-Xcc={s}", .{try options.target.result.zigTriple(b.allocator)}));
+    if (options.use_zigcc) {
+        if (!options.target.result.isDarwin() or !options.target.query.isNative()) {
+            ldc_exec.addArg("-Xcc=-target");
+            ldc_exec.addArg(b.fmt("-Xcc={s}", .{try options.target.result.zigTriple(b.allocator)}));
+        }
     }
 
     // cpu model (e.g. "generic" or )
