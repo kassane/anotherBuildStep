@@ -1,11 +1,18 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const d = @import("config/ldmd2.zig");
-const flang = @import("config/flang.zig");
-const rust = @import("config/rust.zig");
+pub const d = @import("config/ldmd2.zig");
+pub const flang = @import("config/flang.zig");
+pub const rust = @import("config/rust.zig");
 
 pub fn build(b: *std.Build) !void {
-    const target = b.standardTargetOptions(.{ .default_target = if (builtin.os.tag == .windows) try std.Target.Query.parse(.{ .arch_os_abi = "native-windows-msvc" }) else .{} });
+    const target = b.standardTargetOptions(.{
+        .default_target = if (builtin.os.tag == .windows)
+            try std.Target.Query.parse(.{
+                .arch_os_abi = "native-windows-msvc",
+            })
+        else
+            .{},
+    });
     const optimize = b.standardOptimizeOption(.{});
 
     const exeD = try d.BuildStep(b, .{
@@ -20,6 +27,9 @@ pub fn build(b: *std.Build) !void {
         .use_zigcc = true,
     });
     b.default_step.dependOn(&exeD.step);
+
+    // Wait SetupFortran (GH-action) add flang support
+    // https://github.com/fortran-lang/setup-fortran/issues/12
 
     // const exeFortran = try flang.BuildStep(b, .{
     //     .name = "hellof",

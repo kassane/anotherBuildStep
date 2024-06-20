@@ -36,14 +36,17 @@ $ zig fetch --save=abs git+https://github.com/kassane/anotherBuildStep
 
 ```zig
 const std = @import("std");
-
 // get build.zig from pkg to extend your build.zig project (only pub content module)
-const abs = @import("abs"); 
+const abs = @import("abs");
+const ldc = abs.d;
+const flang = abs.flang;
+const rustc = abs.rust; 
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const exe = try abs.ldcBuildStep(b, .{
+    
+    const exe = try ldc.BuildStep(b, .{
         .name = "helloD",
         .target = target,
         .optimize = optimize,
@@ -70,7 +73,7 @@ pub fn build(b: *std.Build) !void {
 
     // or
 
-    const exeRust = try abs.rustcBuildStep(b, .{
+    const exeRust = try rustc.BuildStep(b, .{
         .name = "helloRust",
         .target = target,
         .optimize = optimize,
