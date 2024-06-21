@@ -54,17 +54,19 @@ pub fn build(b: *std.Build) !void {
     });
     b.default_step.dependOn(&exeFortran.step);
 
-    const exeRust = try rust.BuildStep(b, .{
-        .name = "hellors",
-        .target = target,
-        .optimize = optimize,
-        .source = "examples/main.rs",
-        .rflags = &.{
-            "-C",
-            "panic=abort",
-        },
-        .use_zigcc = true,
-        .t_options = zigcc_options,
-    });
-    b.default_step.dependOn(&exeRust.step);
+    // TODO: fix (need refactoring to cross-compile)
+
+    // const exeRust = try rust.BuildStep(b, .{
+    //     .name = "hellors",
+    //     .target = target,
+    //     .optimize = optimize,
+    //     .source = "examples/main.rs",
+    //     .rflags = &.{
+    //         "-C",
+    //         "panic=abort",
+    //     },
+    //     .use_zigcc = true,
+    //     .t_options = zigcc_options,
+    // });
+    // b.default_step.dependOn(&exeRust.step);
 }

@@ -9,12 +9,13 @@ jobs:
       matrix:
         targets:
           - aarch64-linux-gnu
-          - aarch64-linux
-          # - riscv64-linux-gnu
-          # - riscv64-linux
-          # - mipsel-linux
-          # - mipsel-linux-gnuabi
-          # - powerpc64-linux
+          - aarch64-linux-musl
+          - riscv64-linux-musl
+          # LLVM ERROR: Cannot select: 0x7448a42b2fd0: i64 = fp_to_fp16 0x7448a438a570
+          # - loongarch64-linux-musl
+          - powerpc64-linux-musl
+          - powerpc64le-linux-musl
+          # - x86-linux-musl
           # - aarch64-windows
           # - aarch64-macos
 
