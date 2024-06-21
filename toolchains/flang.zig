@@ -35,6 +35,9 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Run 
         }
     }
 
+    if (b.verbose)
+        flang_exec.addArgs(&.{"-v"});
+
     switch (options.optimize) {
         .Debug => flang_exec.addArgs(&.{
             "-g",
@@ -128,15 +131,15 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Run 
         b.fmt("{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
     else if (options.target.result.cpu.arch.isRISCV())
         b.fmt("{s}-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
-    else if (options.target.result.os.tag == .windows)
+    else if (options.target.result.cpu.arch.isX86())
         b.fmt("{s}-pc-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
     else
-        b.fmt("{s}-pc-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
+        b.fmt("{s}-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
 
     flang_exec.addArgs(&.{
         b.fmt("--target={s}", .{target}),
     });
-    if (!options.target.query.isNative()) {
+    if (options.target.query.isNative()) {
         flang_exec.addArg(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
     }
 
@@ -160,13 +163,25 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Run 
     }
 
     if (options.use_zigcc) {
-        const zcc = zigcc.buildZigCC(b);
+        const zcc = zigcc.buildZigCC(b, options.t_options.?);
         const install = b.addInstallArtifact(zcc, .{ .dest_dir = .{ .override = .{ .custom = "tools" } } });
         const zcc_path = b.pathJoin(&.{ b.install_prefix, "tools", if (options.target.result.os.tag == .windows) "zcc.exe" else "zcc" });
         const zcc_exists = !std.meta.isError(std.fs.accessAbsolute(zcc_path, .{}));
         if (!zcc_exists)
             flang_exec.step.dependOn(&install.step);
-        flang_exec.addArg(b.fmt("-fuse-ld={s}", .{zcc_path}));
+        flang_exec.addArgs(&.{
+            "-lc++",
+            b.fmt("-fuse-ld={s}", .{zcc_path}),
+        });
+        if (options.runtime) {
+            const flang_dep = buildFortranRuntime(b, .{
+                .target = options.target,
+                .optimize = options.optimize,
+            });
+            flang_exec.addArtifactArg(flang_dep.artifact("FortranRuntime"));
+            flang_exec.addArtifactArg(flang_dep.artifact("FortranDecimal"));
+            flang_exec.addArtifactArg(flang_dep.artifact("Fortran_main"));
+        }
     }
 
     const example_run = b.addSystemCommand(&.{b.pathJoin(&.{ b.install_path, outputDir, options.name })});
@@ -192,4 +207,16 @@ pub const FlangCompileStep = struct {
     name: []const u8,
     artifact: ?*std.Build.Step.Compile = null,
     use_zigcc: bool = false,
+    t_options: ?*std.Build.Step.Options = null,
+    runtime: bool = true,
 };
+
+pub fn buildFortranRuntime(b: *std.Build, options: struct {
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+}) *std.Build.Dependency {
+    return b.dependency("flang-runtime", .{
+        .target = options.target,
+        .optimize = options.optimize,
+    });
+}

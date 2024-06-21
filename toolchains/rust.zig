@@ -184,7 +184,7 @@ pub fn BuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.Run {
     rustc_exec.addArg(b.fmt("--crate-name={s}", .{options.name}));
 
     if (options.use_zigcc) {
-        const zcc = zigcc.buildZigCC(b);
+        const zcc = zigcc.buildZigCC(b, options.t_options.?);
         const install = b.addInstallArtifact(zcc, .{ .dest_dir = .{ .override = .{ .custom = "tools" } } });
         const zcc_path = b.pathJoin(&.{ b.install_prefix, "tools", if (options.target.result.os.tag == .windows) "zcc.exe" else "zcc" });
         const zcc_exists = !std.meta.isError(std.fs.accessAbsolute(zcc_path, .{}));
@@ -232,6 +232,7 @@ pub const RustCompileStep = struct {
     artifact: ?*std.Build.Step.Compile = null,
     edition: rustEdition = .@"2021",
     use_zigcc: bool = false,
+    t_options: ?*std.Build.Step.Options = null,
 };
 
 pub const rustEdition = enum {

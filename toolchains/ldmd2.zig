@@ -266,19 +266,6 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
 
     ldc_exec.addArg(b.fmt("-mtriple={s}", .{mtriple}));
 
-    if (options.use_zigcc) {
-        ldc_exec.addArg("-Xcc=-target");
-        if (!options.target.query.isNative()) {
-            ldc_exec.addArg(b.fmt(
-                "-Xcc={s}",
-                .{try options.target.result.zigTriple(b.allocator)},
-            ));
-        } else {
-            // Xcc not working on Windows target
-            ldc_exec.addArg("-Xcc=native-native");
-        }
-    }
-
     // cpu model (e.g. "generic" or )
     ldc_exec.addArg(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
 
@@ -294,7 +281,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         ldc_exec.addArg(b.fmt("-of={s}", .{b.pathJoin(&.{ b.install_prefix, outputDir, options.name })}));
 
     if (options.use_zigcc) {
-        const zcc = zigcc.buildZigCC(b);
+        const zcc = zigcc.buildZigCC(b, options.t_options.?);
         const install = b.addInstallArtifact(zcc, .{ .dest_dir = .{ .override = .{ .custom = "tools" } } });
         const zcc_path = b.pathJoin(&.{ b.install_prefix, "tools", if (options.target.result.os.tag == .windows) "zcc.exe" else "zcc" });
         const zcc_exists = !std.meta.isError(std.fs.accessAbsolute(zcc_path, .{}));
@@ -336,4 +323,5 @@ pub const DCompileStep = struct {
     artifact: ?*std.Build.Step.Compile = null,
     use_zigcc: bool = false,
     use_lld: bool = false,
+    t_options: ?*std.Build.Step.Options = null,
 };

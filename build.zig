@@ -17,6 +17,14 @@ pub fn build(b: *std.Build) !void {
     });
     const optimize = b.standardOptimizeOption(.{});
 
+    // Send the triple-target to zigcc (if enabled)
+    const zigcc_options = b.addOptions();
+    if (target.query.isNative()) {
+        zigcc_options.addOption([]const u8, "triple", b.fmt("native-native-{s}", .{@tagName(target.result.abi)}));
+    } else {
+        zigcc_options.addOption([]const u8, "triple", try target.result.linuxTriple(b.allocator));
+    }
+
     const exeD = try ldc2.BuildStep(b, .{
         .name = "helloD",
         .target = target,
@@ -27,24 +35,24 @@ pub fn build(b: *std.Build) !void {
         .dflags = &.{
             "-w",
         },
-        .betterC = if (target.query.isNative()) false else true,
+        .betterC = !target.query.isNative(),
         .use_zigcc = true,
+        .t_options = zigcc_options,
     });
     b.default_step.dependOn(&exeD.step);
 
-    // Wait SetupFortran (GH-action) add flang support
-    // https://github.com/fortran-lang/setup-fortran/issues/12
-    // const exeFortran = try flang.BuildStep(b, .{
-    //     .name = "hellof",
-    //     .target = target,
-    //     .optimize = optimize,
-    //     .sources = &.{
-    //         "examples/main.f90",
-    //     },
-    //     .fflags = &.{},
-    //     .use_zigcc = true,
-    // });
-    // b.default_step.dependOn(&exeFortran.step);
+    const exeFortran = try flang.BuildStep(b, .{
+        .name = "hellof",
+        .target = target,
+        .optimize = optimize,
+        .sources = &.{
+            "examples/main.f90",
+        },
+        .fflags = &.{},
+        .use_zigcc = true,
+        .t_options = zigcc_options,
+    });
+    b.default_step.dependOn(&exeFortran.step);
 
     const exeRust = try rust.BuildStep(b, .{
         .name = "hellors",
@@ -56,6 +64,7 @@ pub fn build(b: *std.Build) !void {
             "panic=abort",
         },
         .use_zigcc = true,
+        .t_options = zigcc_options,
     });
     b.default_step.dependOn(&exeRust.step);
 }

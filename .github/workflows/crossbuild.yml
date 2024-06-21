@@ -18,7 +18,7 @@ jobs:
           # - aarch64-windows
           # - aarch64-macos
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,5 +35,9 @@ jobs:
             profile: minimal
             toolchain: nightly
             override: true
+      - name: get-flang-linux
+        run: |
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends flang
       - name: Build Summary ${{ matrix.targets }}
         run: zig build --summary all -freference-trace -Dtarget=${{ matrix.targets }}

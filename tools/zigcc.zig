@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const build_options = @import("build_options");
 
 // [NOT CHANGE!!] => skip flag
 // replace system-provider resources to zig provider resources
@@ -24,7 +25,7 @@ pub fn main() !void {
     try cmds.append("zig");
     try cmds.append("cc");
 
-    // HACK ldmd2 flag for Darwin target
+    // HACK: ldmd2 emit '-target' flag for Darwin, but zigcc already have it
     var target_count: usize = 0;
 
     while (args.next()) |arg| {
@@ -34,22 +35,16 @@ pub fn main() !void {
         } else if (std.mem.startsWith(u8, arg, "x86_64-apple-")) {
             // NOT CHANGE!!
         } else if (std.mem.startsWith(u8, arg, "-target")) {
-            target_count += 1;
-            if (target_count == 1) {
+            defer target_count += 1;
+            if (target_count < 1) {
                 try cmds.append(arg); // add target flag
             }
         } else if (std.mem.endsWith(u8, arg, "rv64gc") or std.mem.endsWith(u8, arg, "rv32i_zicsr_zifencei")) {
             // NOT CHANGE!!
-        } else if (std.mem.eql(u8, arg, std.fmt.comptimePrint("{s}-pc-{s}-{s}", .{ @tagName(builtin.cpu.arch), @tagName(builtin.os.tag), @tagName(builtin.abi) }))) {
-            try cmds.append(std.fmt.comptimePrint("{s}-{s}-{s}", .{
-                @tagName(builtin.cpu.arch),
-                @tagName(builtin.os.tag),
-                @tagName(builtin.abi),
-            }));
         } else if (std.mem.endsWith(u8, arg, ".cpp") or std.mem.endsWith(u8, arg, ".cc")) {
             try cmds.append("-x");
             try cmds.append("c++");
-        } else if (std.mem.endsWith(u8, arg, "gnu")) {
+        } else if (std.mem.endsWith(u8, arg, "gnu")) { // hash-style
             // NOT CHANGE!!
         } else if (std.mem.startsWith(u8, arg, "--build-id")) {
             // NOT CHANGE!!
@@ -60,6 +55,14 @@ pub fn main() !void {
         } else if (std.mem.endsWith(u8, arg, "as-needed")) {
             // NOT CHANGE!!
         } else if (std.mem.endsWith(u8, arg, "gcc") or std.mem.endsWith(u8, arg, "gcc_s")) {
+            // NOT CHANGE!!
+        } else if (std.mem.startsWith(u8, arg, "-lFortran")) {
+            // NOT CHANGE!!
+        } else if (std.mem.endsWith(u8, arg, "linkonceodr-outlining")) {
+            // NOT CHANGE!!
+        } else if (std.mem.startsWith(u8, arg, "aarch64linux") or std.mem.startsWith(u8, arg, "elf")) {
+            // NOT CHANGE!!
+        } else if (std.mem.startsWith(u8, arg, "/lib/ld-") or std.mem.startsWith(u8, arg, "-dynamic-linker")) {
             // NOT CHANGE!!
         } else if (std.mem.endsWith(u8, arg, "crtendS.o") or std.mem.endsWith(u8, arg, "crtn.o")) {
             // NOT CHANGE!!
@@ -73,9 +76,8 @@ pub fn main() !void {
     }
 
     if (target_count < 1) {
-        // by default, zig windows target is MinGW
         try cmds.append("-target");
-        try cmds.append("native-native-msvc");
+        try cmds.append(build_options.triple);
     }
 
     if (builtin.os.tag != .windows) {
