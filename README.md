@@ -61,6 +61,14 @@ pub fn build(b: *std.Build) !void {
 
     // or
 
+    // Send the triple-target to zigcc (if enabled)
+    const zigcc_options = b.addOptions();
+    if (target.query.isNative()) {
+        zigcc_options.addOption([]const u8, "triple", b.fmt("native-native-{s}", .{@tagName(target.result.abi)}));
+    } else {
+        zigcc_options.addOption([]const u8, "triple", try target.result.linuxTriple(b.allocator));
+    }
+
     const exeFortran = try flang.BuildStep(b, .{
         .name = "hellof",
         .target = target,
@@ -70,6 +78,7 @@ pub fn build(b: *std.Build) !void {
         },
         .fflags = &.{},
         .use_zigcc = true,
+        .t_options = zigcc_options,
     });
     b.default_step.dependOn(&exeFortran.step);
 

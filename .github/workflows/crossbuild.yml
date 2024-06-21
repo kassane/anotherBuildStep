@@ -10,7 +10,7 @@ jobs:
         targets:
           - aarch64-linux-gnu
           - aarch64-linux
-          - riscv64-linux-gnu
+          # - riscv64-linux-gnu
           # - riscv64-linux
           # - mipsel-linux
           # - mipsel-linux-gnuabi
