@@ -31,9 +31,9 @@ pub fn main() !void {
     while (args.next()) |arg| {
         // MacOS M1/M2 target, replace aarch64 to arm64
         if (std.mem.startsWith(u8, arg, "aarch64-apple-") or std.mem.startsWith(u8, arg, "arm64-apple-")) {
-            // NOT CHANGE!!
+            try cmds.append(build_options.triple);
         } else if (std.mem.startsWith(u8, arg, "x86_64-apple-")) {
-            // NOT CHANGE!!
+            try cmds.append(build_options.triple);
         } else if (std.mem.startsWith(u8, arg, "-target")) {
             defer target_count += 1;
             if (target_count < 1) {
