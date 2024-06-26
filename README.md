@@ -1,4 +1,4 @@
-# anotherBuildStep (a.k.a ABS)
+# anotherBuildStep (a.k.a aBS)
 
 ## Overview
 
@@ -19,7 +19,7 @@
 ## Supported
 
 - [ldc2](https://ldc-developers.github.io/) v1.38.0 or latest-CI
-- [flang](https://flang.llvm.org) (a.k.a flang-new) LLVM-18.1.3 or master [WiP]
+- [flang](https://flang.llvm.org) (a.k.a flang-new) LLVM-18.1.3 or master
 - [rustc](https://www.rust-lang.org/tools/install) stable or nightly
 
 
@@ -27,12 +27,12 @@
 
 Make new project or add to existing project:
 
-In project folder, add this package, as dependency on your `build.zig.zon`
+In project folder, add this package as dependency on your `build.zig.zon`
 
 ```bash
 $ zig fetch --save=abs git+https://github.com/kassane/anotherBuildStep
 ```
-- add `@import("anotherBuildStep")` to `build.zig`
+- add `const abs = @import("abs")` in `build.zig`
 
 ```zig
 const std = @import("std");
