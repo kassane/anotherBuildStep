@@ -14,3 +14,22 @@ pub fn buildZigCC(b: *std.Build, target_options: *std.Build.Step.Options) *std.B
 fn rootPath() []const u8 {
     return std.fs.path.dirname(@src().file) orelse ".";
 }
+
+pub fn buildOptions(b: *std.Build, target: std.Build.ResolvedTarget) !*std.Build.Step.Options {
+    const zigcc_options = b.addOptions();
+
+    zigcc_options.addOption(
+        ?[]const u8,
+        "triple",
+        if (target.query.isNative()) b.fmt(
+            "native-native-{s}",
+            .{@tagName(target.result.abi)},
+        ) else try target.result.linuxTriple(b.allocator),
+    );
+    zigcc_options.addOption(
+        ?[]const u8,
+        "cpu",
+        target.result.cpu.model.name,
+    );
+    return zigcc_options;
+}

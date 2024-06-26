@@ -151,6 +151,13 @@ pub fn BuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.Run {
 
     rustc_exec.addArgs(&.{ "--target", target });
 
+    if (options.target.result.isMusl()) {
+        rustc_exec.addArgs(&.{
+            "-C",
+            "target-feature=+crt-static",
+        });
+    }
+
     // cpu model (e.g. "baseline")
     rustc_exec.addArg("-C");
     rustc_exec.addArg(b.fmt("target-cpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
@@ -185,15 +192,8 @@ pub fn BuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.Run {
 
     if (options.use_zigcc) {
         const zcc = zigcc.buildZigCC(b, options.t_options.?);
-        const install = b.addInstallArtifact(zcc, .{ .dest_dir = .{ .override = .{ .custom = "tools" } } });
-        const zcc_path = b.pathJoin(&.{ b.install_prefix, "tools", if (options.target.result.os.tag == .windows) "zcc.exe" else "zcc" });
-        const zcc_exists = !std.meta.isError(std.fs.accessAbsolute(zcc_path, .{}));
-        if (!zcc_exists)
-            rustc_exec.step.dependOn(&install.step);
-        rustc_exec.addArgs(&.{
-            "-C",
-            b.fmt("linker={s}", .{zcc_path}),
-        });
+        rustc_exec.addArg("-C");
+        rustc_exec.addPrefixedFileArg("linker=", zcc.getEmittedBin());
     }
 
     if (!options.target.query.isNative()) {

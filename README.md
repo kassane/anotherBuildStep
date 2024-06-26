@@ -38,9 +38,14 @@ $ zig fetch --save=abs git+https://github.com/kassane/anotherBuildStep
 const std = @import("std");
 // get build.zig from pkg to extend your build.zig project (only pub content module)
 const abs = @import("abs");
+// Dlang
 const ldc2 = abs.ldc2;
+// Fortran
 const flang = abs.flang;
-const rustc = abs.rust; 
+// Rust
+const rustc = abs.rust;
+// zig-cc wrapper
+const zcc = abs.zcc;
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -60,15 +65,7 @@ pub fn build(b: *std.Build) !void {
     b.default_step.dependOn(&exeD.step);
 
     // or
-
-    // Send the triple-target to zigcc (if enabled)
-    const zigcc_options = b.addOptions();
-    if (target.query.isNative()) {
-        zigcc_options.addOption([]const u8, "triple", b.fmt("native-native-{s}", .{@tagName(target.result.abi)}));
-    } else {
-        zigcc_options.addOption([]const u8, "triple", try target.result.linuxTriple(b.allocator));
-    }
-
+    
     const exeFortran = try flang.BuildStep(b, .{
         .name = "hellof",
         .target = target,
@@ -78,7 +75,7 @@ pub fn build(b: *std.Build) !void {
         },
         .fflags = &.{},
         .use_zigcc = true,
-        .t_options = zigcc_options,
+        .t_options = try zcc.buildOptions(b, target),
     });
     b.default_step.dependOn(&exeFortran.step);
 

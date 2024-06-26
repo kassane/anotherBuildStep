@@ -284,13 +284,8 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
 
     if (options.use_zigcc) {
         const zcc = zigcc.buildZigCC(b, options.t_options.?);
-        const install = b.addInstallArtifact(zcc, .{ .dest_dir = .{ .override = .{ .custom = "tools" } } });
-        const zcc_path = b.pathJoin(&.{ b.install_prefix, "tools", if (options.target.result.os.tag == .windows) "zcc.exe" else "zcc" });
-        const zcc_exists = !std.meta.isError(std.fs.accessAbsolute(zcc_path, .{}));
-        if (!zcc_exists)
-            ldc_exec.step.dependOn(&install.step);
-        ldc_exec.addArg(b.fmt("--gcc={s}", .{zcc_path}));
-        ldc_exec.addArg(b.fmt("--linker={s}", .{zcc_path}));
+        ldc_exec.addPrefixedFileArg("--gcc=", zcc.getEmittedBin());
+        ldc_exec.addPrefixedFileArg("--linker=", zcc.getEmittedBin());
     }
 
     if (options.artifact) |lib| {

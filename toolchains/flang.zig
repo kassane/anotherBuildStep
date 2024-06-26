@@ -164,15 +164,8 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Run 
 
     if (options.use_zigcc) {
         const zcc = zigcc.buildZigCC(b, options.t_options.?);
-        const install = b.addInstallArtifact(zcc, .{ .dest_dir = .{ .override = .{ .custom = "tools" } } });
-        const zcc_path = b.pathJoin(&.{ b.install_prefix, "tools", if (options.target.result.os.tag == .windows) "zcc.exe" else "zcc" });
-        const zcc_exists = !std.meta.isError(std.fs.accessAbsolute(zcc_path, .{}));
-        if (!zcc_exists)
-            flang_exec.step.dependOn(&install.step);
-        flang_exec.addArgs(&.{
-            "-lc++",
-            b.fmt("-fuse-ld={s}", .{zcc_path}),
-        });
+        flang_exec.addArg("-lc++");
+        flang_exec.addPrefixedFileArg("-fuse-ld=", zcc.getEmittedBin());
         if (options.runtime) {
             const flang_dep = buildFortranRuntime(b, .{
                 .target = options.target,

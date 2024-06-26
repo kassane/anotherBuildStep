@@ -1,10 +1,12 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-// toolchains modules
+// toolchain modules
 pub const ldc2 = @import("toolchains/ldmd2.zig");
 pub const flang = @import("toolchains/flang.zig");
 pub const rust = @import("toolchains/rust.zig");
+// Send the triple-target to zigcc (if enabled)
+pub const zcc = @import("toolchains/zigcc.zig");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{
@@ -16,14 +18,6 @@ pub fn build(b: *std.Build) !void {
             .{},
     });
     const optimize = b.standardOptimizeOption(.{});
-
-    // Send the triple-target to zigcc (if enabled)
-    const zigcc_options = b.addOptions();
-    if (target.query.isNative()) {
-        zigcc_options.addOption([]const u8, "triple", b.fmt("native-native-{s}", .{@tagName(target.result.abi)}));
-    } else {
-        zigcc_options.addOption([]const u8, "triple", try target.result.linuxTriple(b.allocator));
-    }
 
     const exeD = try ldc2.BuildStep(b, .{
         .name = "helloD",
@@ -37,7 +31,7 @@ pub fn build(b: *std.Build) !void {
         },
         .betterC = !target.query.isNative(),
         .use_zigcc = true,
-        .t_options = zigcc_options,
+        .t_options = try zcc.buildOptions(b, target),
     });
     b.default_step.dependOn(&exeD.step);
 
@@ -50,23 +44,19 @@ pub fn build(b: *std.Build) !void {
         },
         .fflags = &.{},
         .use_zigcc = true,
-        .t_options = zigcc_options,
+        .t_options = try zcc.buildOptions(b, target),
     });
     b.default_step.dependOn(&exeFortran.step);
 
     // TODO: fix (need refactoring to cross-compile)
-
     // const exeRust = try rust.BuildStep(b, .{
     //     .name = "hellors",
     //     .target = target,
     //     .optimize = optimize,
     //     .source = "examples/main.rs",
-    //     .rflags = &.{
-    //         "-C",
-    //         "panic=abort",
-    //     },
+    //     .rflags = &.{},
     //     .use_zigcc = true,
-    //     .t_options = zigcc_options,
+    //     .t_options = try zcc.buildOptions(b, target),
     // });
     // b.default_step.dependOn(&exeRust.step);
 }
