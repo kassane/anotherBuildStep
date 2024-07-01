@@ -281,10 +281,14 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         .@"test" => "test",
         .obj => "obj",
     };
+    const outputName = switch (options.kind) {
+        .lib => if (options.target.result.abi != .msvc) try std.mem.join(b.allocator, "", &.{ outputDir, options.name }) else options.name,
+        else => options.name,
+    };
 
     // output file
     if (options.kind != .obj)
-        ldc_exec.addArg(b.fmt("-of={s}", .{b.pathJoin(&.{ b.install_prefix, outputDir, options.name })}));
+        ldc_exec.addArg(b.fmt("-of={s}", .{b.pathJoin(&.{ b.install_prefix, outputDir, outputName })}));
 
     if (options.use_zigcc) {
         const zcc = zigcc.buildZigCC(b, options.t_options.?);
