@@ -22,13 +22,15 @@ fn rootPath() []const u8 {
 pub fn buildOptions(b: *std.Build, target: std.Build.ResolvedTarget) !*std.Build.Step.Options {
     const zigcc_options = b.addOptions();
 
+    // Native target, zig can read 'zig libc' contents and also link system libraries.
+    const native = if (target.query.isNative()) switch (target.result.abi) {
+        .msvc => "native-native-msvc",
+        else => "native-native",
+    } else try target.result.zigTriple(b.allocator);
     zigcc_options.addOption(
         ?[]const u8,
         "triple",
-        if (target.query.isNative()) b.fmt(
-            "native-native-{s}",
-            .{@tagName(target.result.abi)},
-        ) else try target.result.linuxTriple(b.allocator),
+        native,
     );
     zigcc_options.addOption(
         ?[]const u8,
