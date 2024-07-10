@@ -5,6 +5,7 @@
 const std = @import("std");
 const zigcc = @import("zigcc.zig");
 const dep = @import("depsIterate.zig");
+const artifact = @import("artifact.zig"); // TODO: replace 'Step.Run' to 'Step.Compile'
 
 // Use LDC2 (https://github.com/ldc-developers/ldc) to compile the D examples
 pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
@@ -67,6 +68,37 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         }
     }
 
+    // C++ standard for name mangling compatibility
+    if (options.cxxVerCompat) |version| {
+        ldc_exec.addArg(b.fmt("--extern-std={s}", .{switch (version) {
+            .cxx11 => "c++11",
+            .cxx14 => "c++14",
+            .cxx17 => "c++17",
+            .cxx20 => "c++20",
+            .cxx23 => "c++23",
+            .legacy => "c++98",
+        }}));
+    }
+
+    // D Imports & C Includes
+    if (options.importPaths) |imports| {
+        for (imports) |import| {
+            if (import[0] == '-') {
+                @panic("Import: add import paths only!");
+            }
+            ldc_exec.addArg(b.fmt("-I{s}", .{import}));
+        }
+    }
+
+    if (options.cIncludePaths) |includes| {
+        for (includes) |include| {
+            if (include[0] == '-') {
+                @panic("Include: add C include paths only!");
+            }
+            ldc_exec.addArg(b.fmt("-P-I{s}", .{include}));
+        }
+    }
+
     // betterC disable druntime and phobos
     if (options.betterC)
         ldc_exec.addArg("-betterC");
@@ -111,10 +143,18 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     var objpath: []const u8 = undefined; // needed for wasm build
     if (b.cache_root.path) |path| {
         // immutable state hash
-        objpath = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() });
+        objpath = b.pathJoin(&.{
+            path,
+            "o",
+            &b.graph.cache.hash.peek(),
+        });
         ldc_exec.addArg(b.fmt("-od={s}", .{objpath}));
         // mutable state hash (ldc2 cache - llvm-ir2obj)
-        ldc_exec.addArg(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
+        ldc_exec.addArg(b.fmt("-cache={s}", .{b.pathJoin(&.{
+            path,
+            "o",
+            &b.graph.cache.hash.final(),
+        })}));
     }
 
     // disable LLVM-IR verifier
@@ -325,8 +365,22 @@ pub const DCompileStep = struct {
     versions: ?[]const []const u8 = null,
     name: []const u8,
     d_packages: ?[]const []const u8 = null,
+    cIncludePaths: ?[]const []const u8 = null,
+    importPaths: ?[]const []const u8 = null,
     artifact: ?*std.Build.Step.Compile = null,
     use_zigcc: bool = false,
     use_lld: bool = false,
     t_options: ?*std.Build.Step.Options = null,
+    cxxVerCompat: ?CxxVersion = null,
+};
+
+/// C++ standard for name mangling compatibility
+const CxxVersion = enum {
+    legacy,
+    cxx11,
+    cxx14,
+    cxx17,
+    cxx20,
+    /// C++23 is not yet supported by LDC2
+    cxx23,
 };
