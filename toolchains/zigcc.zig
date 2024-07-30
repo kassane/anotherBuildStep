@@ -5,18 +5,16 @@
 const std = @import("std");
 
 pub fn buildZigCC(b: *std.Build, target_options: *std.Build.Step.Options) *std.Build.Step.Compile {
+    const zccPath = b.dependency("zigcc", .{}).path("zigcc.zig");
     const exe = b.addExecutable(.{
         .name = "zcc",
         .target = b.graph.host,
         .optimize = .ReleaseSafe,
-        .root_source_file = .{ .cwd_relative = b.pathJoin(&.{ rootPath(), "..", "tools", "zigcc.zig" }) },
+        .root_source_file = zccPath,
     });
+    std.debug.print("zcc path: {s}\n", .{exe.root_module.root_source_file.?.getPath(b)});
     exe.root_module.addOptions("build_options", target_options);
     return exe;
-}
-
-fn rootPath() []const u8 {
-    return std.fs.path.dirname(@src().file) orelse ".";
 }
 
 pub fn buildOptions(b: *std.Build, target: std.Build.ResolvedTarget) !*std.Build.Step.Options {

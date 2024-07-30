@@ -117,13 +117,12 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
             "-boundscheck=on",
         }),
         .ReleaseSafe => ldc_exec.addArgs(&.{
-            "-O3",
-            "-release",
+            "-O",
             "-enable-inlining",
             "-boundscheck=safeonly",
         }),
         .ReleaseFast => ldc_exec.addArgs(&.{
-            "-O",
+            "-O3",
             "-release",
             "-enable-inlining",
             "-boundscheck=off",
