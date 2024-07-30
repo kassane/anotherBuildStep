@@ -12,7 +12,6 @@ pub fn buildZigCC(b: *std.Build, target_options: *std.Build.Step.Options) *std.B
         .optimize = .ReleaseSafe,
         .root_source_file = zccPath,
     });
-    std.debug.print("zcc path: {s}\n", .{exe.root_module.root_source_file.?.getPath(b)});
     exe.root_module.addOptions("build_options", target_options);
     return exe;
 }
