@@ -19,9 +19,6 @@
             .url = "git+https://github.com/kassane/ffi-flang-zig#72c3899e0c748d470745bf5fa342b85e152877b7",
             .hash = "12205773530de0bbcb5a3a55e81d6df00e8a219115cc2bd441465cd9c2c916a7b470",
         },
-        .zigcc = .{
-            .path = "tools",
-        },
     },
     .paths = .{
         // This makes *all* files, recursively, included in this package. It is generally
