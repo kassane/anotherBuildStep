@@ -7,6 +7,7 @@ const builtin = @import("builtin");
 pub const ldc2 = @import("toolchains/ldmd2.zig");
 pub const flang = @import("toolchains/flang.zig");
 pub const rust = @import("toolchains/rust.zig");
+pub const swift = @import("toolchains/swiftc.zig");
 // Send the triple-target to zigcc (if enabled)
 pub const zcc = @import("toolchains/zigcc.zig");
 
@@ -49,6 +50,18 @@ pub fn build(b: *std.Build) !void {
         .t_options = try zcc.buildOptions(b, target),
     });
     b.default_step.dependOn(&exeFortran.step);
+
+    const exeSwift = try swift.BuildStep(b, .{
+        .name = "hello_swift",
+        .target = target,
+        .optimize = optimize,
+        .sources = &.{
+            "examples/main.swift",
+        },
+        // .use_zigcc = true,
+        // .t_options = try zcc.buildOptions(b, target),
+    });
+    b.default_step.dependOn(&exeSwift.step);
 
     // TODO: fix (need refactoring to cross-compile)
     // const exeRust = try rust.BuildStep(b, .{

@@ -33,6 +33,17 @@ pub fn main() !void {
             // NOT CHANGE!!
         } else if (std.mem.startsWith(u8, arg, "-target")) {
             // NOT CHANGE!!
+        } else if (std.mem.endsWith(u8, arg, "-group")) {
+            try cmds.appendSlice(&.{
+                "-Wl,--start-group",
+                "-Wl,--end-group",
+            });
+        } else if (std.mem.endsWith(u8, arg, "-dynamic")) {
+            try cmds.append("-Wl,--export-dynamic");
+        } else if (std.mem.eql(u8, arg, "--exclude-libs") or std.mem.eql(u8, arg, "ALL")) {
+            // NOT CHANGE!!
+            // } else if (std.mem.eql(u8, arg, "-lstdc++")) {
+            // NOT CHANGE!!
         } else if (std.mem.endsWith(u8, arg, "rv64gc") or
             std.mem.endsWith(u8, arg, "rv32i_zicsr_zifencei"))
         {
