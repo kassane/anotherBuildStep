@@ -74,5 +74,6 @@ pub fn build(b: *std.Build) !void {
         .use_zigcc = true,
         .t_options = try zcc.buildOptions(b, target),
     });
-    b.default_step.dependOn(&exeRust.step);
+    if (!target.result.cpu.arch.isPowerPC64())
+        b.default_step.dependOn(&exeRust.step);
 }
