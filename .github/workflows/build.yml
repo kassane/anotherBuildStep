@@ -11,10 +11,8 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v4
-      - uses: korandoru/setup-zig@v1
-        with:
-          zig-version: master
-      - uses: dlang-community/setup-dlang@v1
+      - uses: mlugg/setup-zig@v1
+      - uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-master
       - uses: actions-rs/toolchain@v1

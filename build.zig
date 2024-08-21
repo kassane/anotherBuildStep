@@ -22,8 +22,8 @@ pub fn build(b: *std.Build) !void {
     });
     const optimize = b.standardOptimizeOption(.{});
 
-    const exeD = try ldc2.BuildStep(b, .{
-        .name = "helloD",
+    const exeDlang = try ldc2.BuildStep(b, .{
+        .name = "d_example",
         .target = target,
         .optimize = optimize,
         .sources = &.{
@@ -36,10 +36,10 @@ pub fn build(b: *std.Build) !void {
         .use_zigcc = true,
         .t_options = try zcc.buildOptions(b, target),
     });
-    b.default_step.dependOn(&exeD.step);
+    b.default_step.dependOn(&exeDlang.step);
 
     const exeFortran = try flang.BuildStep(b, .{
-        .name = "hellof",
+        .name = "fortran_example",
         .target = target,
         .optimize = optimize,
         .sources = &.{
@@ -51,27 +51,28 @@ pub fn build(b: *std.Build) !void {
     });
     b.default_step.dependOn(&exeFortran.step);
 
-    const exeSwift = try swift.BuildStep(b, .{
-        .name = "hello_swift",
-        .target = target,
-        .optimize = optimize,
-        .sources = &.{
-            "examples/main.swift",
-        },
-        // .use_zigcc = true,
-        // .t_options = try zcc.buildOptions(b, target),
-    });
-    b.default_step.dependOn(&exeSwift.step);
-
-    // TODO: fix (need refactoring to cross-compile)
-    // const exeRust = try rust.BuildStep(b, .{
-    //     .name = "hellors",
+    // experimental (no cross-compilation support)
+    // const exeSwift = try swift.BuildStep(b, .{
+    //     .name = "swift_example",
     //     .target = target,
     //     .optimize = optimize,
-    //     .source = "examples/main.rs",
-    //     .rflags = &.{},
+    //     .sources = &.{
+    //         "examples/main.swift",
+    //     },
     //     .use_zigcc = true,
     //     .t_options = try zcc.buildOptions(b, target),
     // });
-    // b.default_step.dependOn(&exeRust.step);
+    // b.default_step.dependOn(&exeSwift.step);
+
+    // TODO: fix (need refactoring to cross-compile)
+    const exeRust = try rust.BuildStep(b, .{
+        .name = "rust_example",
+        .target = target,
+        .optimize = optimize,
+        .source = "examples/main.rs",
+        .rflags = &.{},
+        .use_zigcc = true,
+        .t_options = try zcc.buildOptions(b, target),
+    });
+    b.default_step.dependOn(&exeRust.step);
 }

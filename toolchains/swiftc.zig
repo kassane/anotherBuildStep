@@ -12,15 +12,13 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
     var swiftc_exec = b.addSystemCommand(&.{"swiftc"});
     swiftc_exec.setName(options.name);
 
-    swiftc_exec.setEnvironmentVariable("LD_LIBRARY_PATH", "/home/kassane/Downloads/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-19-a-ubuntu22.04/lib");
-
     // set kind of build
     switch (options.kind) {
         .@"test" => swiftc_exec.addArg("-enable-testing"),
         .lib => swiftc_exec.addArg("-emit-library"),
         .obj => swiftc_exec.addArg("-emit-object"),
         // .exe => swiftc_exec.addArg("-emit-executable"),
-        else => {},
+        .exe => {},
     }
 
     if (options.flags) |flags| {
@@ -66,7 +64,6 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
 
     // object file output (zig-cache/o/{hash_id}/*.o)
     if (b.cache_root.path) |path| {
-        swiftc_exec.addArg("-cache-compile-job");
         // immutable state hash
         swiftc_exec.addArgs(&.{
             "-clang-scanner-module-cache-path", b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() }),
@@ -92,13 +89,17 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
 
     // MS Linker
     if (options.target.result.abi == .msvc and options.optimize == .Debug and !options.use_zigcc) {
-        swiftc_exec.addArgs(&.{ "-Xlinker", "-lmsvcrtd" });
-        swiftc_exec.addArgs(&.{ "-Xlinker", "/NODEFAULTLIB:libcmt.lib" });
-        swiftc_exec.addArgs(&.{ "-Xlinker", "/NODEFAULTLIB:libvcruntime.lib" });
+        swiftc_exec.addArgs(&.{
+            "-lmsvcrtd",
+            "-Xlinker",
+            "/NODEFAULTLIB:libcmt.lib",
+            "-Xlinker",
+            "/NODEFAULTLIB:libvcruntime.lib",
+        });
     }
     // GNU LD
     if (options.target.result.os.tag == .linux and !options.use_zigcc) {
-        // swiftc_exec.addArgs(&.{ "-Xlinker", "--no-as-needed" });
+        swiftc_exec.addArgs(&.{ "-Xlinker", "--no-as-needed" });
     }
     // LLD
     if (options.target.result.isDarwin() and !options.use_zigcc) {
@@ -191,29 +192,40 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
         swiftc_exec.addArgs(&.{
             "-enable-experimental-feature",
             "Embedded",
+            "-no-allocations",
+            "-wmo",
         });
     } else {
-        swiftc_exec.addArg("-static-stdlib");
+        if (!options.use_zigcc)
+            swiftc_exec.addArg("-static-stdlib");
     }
 
-    // ldc2 doesn't support zig native (a.k.a: native-native or native)
+    // embedded targets: aarch64-none-none-elf, arm64-apple-none-macho,
+    // armv4t-none-none-eabi, armv6-apple-none-macho, armv6-none-none-eabi,
+    // armv6m-apple-none-macho, armv6m-none-none-eabi, armv7-apple-none-macho,
+    // armv7-none-none-eabi, armv7em-apple-none-macho, armv7em-none-none-eabi,
+    // avr-none-none-elf, i686-unknown-none-elf, riscv32-none-none-eabi, riscv64-none-none-eabi,
+    // wasm32-unknown-none-wasm, wasm64-unknown-none-wasm, x86_64-unknown-linux-gnu,
+    // x86_64-unknown-none-elf,
     const mtriple = if (options.target.result.isDarwin())
-        b.fmt("{s}-apple-{s}", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+        b.fmt("{s}-apple-{s}-macho", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
     else if (options.target.result.isWasm() and options.target.result.os.tag == .freestanding)
-        b.fmt("{s}-unknown-unknown-wasm", .{@tagName(options.target.result.cpu.arch)})
+        b.fmt("{s}-unknown-none-wasm", .{@tagName(options.target.result.cpu.arch)})
     else if (options.target.result.isWasm())
-        b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+        b.fmt("{s}-none-none-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
     else if (options.target.result.cpu.arch.isRISCV())
-        b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })
+        b.fmt("{s}-none-none-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })
     else if (options.target.result.cpu.arch == .x86)
         b.fmt("i686-{s}-{s}", .{ @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
+    else if (options.target.result.os.tag == .freestanding)
+        b.fmt("{s}-unknown-none-elf", .{@tagName(options.target.result.cpu.arch)})
     else
-        b.fmt("{s}-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
-    _ = mtriple; // autofix
+        b.fmt("{s}-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
 
-    // swiftc_exec.addArgs(&.{ "-target", mtriple });
-    // cpu model (e.g. "generic" or )
-    // swiftc_exec.addArg(b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse "generic"}));
+    swiftc_exec.addArgs(&.{
+        "-target",     mtriple,
+        "-target-cpu", options.target.result.cpu.model.llvm_name orelse "generic",
+    });
 
     const outputDir = switch (options.kind) {
         .lib => "lib",
@@ -227,13 +239,17 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
     };
 
     // output file
-    if (options.kind != .obj)
+    if (options.kind != .obj) {
+        // swift no make output dir
+        _ = try std.fs.cwd().makeOpenPath(b.pathJoin(&.{ b.install_prefix, outputDir }), .{});
         swiftc_exec.addArgs(&.{
             "-o", b.pathJoin(&.{ b.install_prefix, outputDir, outputName }),
         });
+    }
 
     if (options.use_zigcc) {
         const zcc = zigcc.buildZigCC(b, options.t_options.?);
+        swiftc_exec.addPrefixedFileArg("-ld-path=", zcc.getEmittedBin());
         swiftc_exec.addPrefixedFileArg("-use-ld=", zcc.getEmittedBin());
     }
 

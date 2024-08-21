@@ -10,6 +10,7 @@
 - [x] flang-new support
 - [x] rustc (no cargo) support
 - [ ] ~~rustc (cargo) support~~ (need to figure out how to get the cargo build system to work)
+- [ ] swiftc-6 support
 
 ## Required
 
@@ -21,6 +22,7 @@
 - [ldc2](https://ldc-developers.github.io/) v1.38.0 or latest-CI
 - [flang](https://flang.llvm.org) (a.k.a flang-new) LLVM-18.1.3 or master
 - [rustc](https://www.rust-lang.org/tools/install) stable or nightly
+- [swift](https://swift.org/download/) v6.0 or main-snapshots
 
 
 ## Usage
@@ -44,6 +46,8 @@ const ldc2 = abs.ldc2;
 const flang = abs.flang;
 // Rust
 const rustc = abs.rust;
+// Swift
+const swiftc = abs.swift;
 // zig-cc wrapper
 const zcc = abs.zcc;
 
@@ -51,8 +55,8 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     
-    const exeD = try ldc2.BuildStep(b, .{
-        .name = "helloD",
+    const exeDlang = try ldc2.BuildStep(b, .{
+        .name = "d_example",
         .target = target,
         .optimize = optimize,
         .sources = &.{
@@ -62,12 +66,12 @@ pub fn build(b: *std.Build) !void {
             "-w",
         },
     });
-    b.default_step.dependOn(&exeD.step);
+    b.default_step.dependOn(&exeDlang.step);
 
     // or
     
     const exeFortran = try flang.BuildStep(b, .{
-        .name = "hellof",
+        .name = "fortran_example",
         .target = target,
         .optimize = optimize,
         .sources = &.{
@@ -82,7 +86,7 @@ pub fn build(b: *std.Build) !void {
     // or
 
     const exeRust = try rustc.BuildStep(b, .{
-        .name = "helloRust",
+        .name = "rust_example",
         .target = target,
         .optimize = optimize,
         .source = "src/main.rs",
@@ -92,5 +96,19 @@ pub fn build(b: *std.Build) !void {
         },
     });
     b.default_step.dependOn(&exeRust.step);
+
+    // or
+
+    const exeSwift = try swift.BuildStep(b, .{
+        .name = "swift_example",
+        .target = target,
+        .optimize = optimize,
+        .sources = &.{
+            "examples/main.swift",
+        },
+        .use_zigcc = true,
+        .t_options = try zcc.buildOptions(b, target),
+    });
+    b.default_step.dependOn(&exeSwift.step);
 }
 ```
