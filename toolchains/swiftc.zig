@@ -207,8 +207,8 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
     // avr-none-none-elf, i686-unknown-none-elf, riscv32-none-none-eabi, riscv64-none-none-eabi,
     // wasm32-unknown-none-wasm, wasm64-unknown-none-wasm, x86_64-unknown-linux-gnu,
     // x86_64-unknown-none-elf,
-    const mtriple = if (options.target.result.isDarwin())
-        b.fmt("{s}-apple-{s}-macho", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
+    const mtriple = if (options.target.result.os.tag == .macos)
+        b.fmt("{s}-apple-macosx{}", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), options.target.result.os.version_range.semver.min })
     else if (options.target.result.isWasm() and options.target.result.os.tag == .freestanding)
         b.fmt("{s}-unknown-none-wasm", .{@tagName(options.target.result.cpu.arch)})
     else if (options.target.result.isWasm())
