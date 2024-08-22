@@ -8,6 +8,7 @@ pub const ldc2 = @import("toolchains/ldmd2.zig");
 pub const flang = @import("toolchains/flang.zig");
 pub const rust = @import("toolchains/rust.zig");
 pub const swift = @import("toolchains/swiftc.zig");
+
 // Send the triple-target to zigcc (if enabled)
 pub const zcc = @import("toolchains/zigcc.zig");
 
@@ -52,16 +53,17 @@ pub fn build(b: *std.Build) !void {
     b.default_step.dependOn(&exeFortran.step);
 
     // experimental (no cross-compilation support)
-    // const exeSwift = try swift.BuildStep(b, .{
-    //     .name = "swift_example",
-    //     .target = target,
-    //     .optimize = optimize,
-    //     .sources = &.{
-    //         "examples/main.swift",
-    //     },
-    //     .use_zigcc = true,
-    //     .t_options = try zcc.buildOptions(b, target),
-    // });
+    const exeSwift = try swift.BuildStep(b, .{
+        .name = "swift_example",
+        .target = target,
+        .optimize = optimize,
+        .sources = &.{
+            "examples/main.swift",
+        },
+        .use_zigcc = true,
+        .t_options = try zcc.buildOptions(b, target),
+    });
+    _ = exeSwift; // autofix
     // b.default_step.dependOn(&exeSwift.step);
 
     // TODO: fix (need refactoring to cross-compile)

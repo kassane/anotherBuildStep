@@ -16,8 +16,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
     switch (options.kind) {
         .@"test" => swiftc_exec.addArg("-enable-testing"),
         .lib => swiftc_exec.addArg("-emit-library"),
-        .obj => swiftc_exec.addArg("-emit-object"),
-        // .exe => swiftc_exec.addArg("-emit-executable"),
+        .obj => swiftc_exec.addArg("-c"),
         .exe => {},
     }
 
@@ -56,10 +55,10 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
     }
 
     switch (options.optimize) {
-        .Debug => swiftc_exec.addArgs(&.{"-g"}),
-        .ReleaseSafe => swiftc_exec.addArgs(&.{"-O"}),
-        .ReleaseFast => swiftc_exec.addArgs(&.{"-Ounchecked"}),
-        .ReleaseSmall => swiftc_exec.addArgs(&.{"-Osize"}),
+        .Debug => swiftc_exec.addArg("-g"),
+        .ReleaseSafe => swiftc_exec.addArg("-O"),
+        .ReleaseFast => swiftc_exec.addArg("-Ounchecked"),
+        .ReleaseSmall => swiftc_exec.addArg("-Osize"),
     }
 
     // object file output (zig-cache/o/{hash_id}/*.o)
@@ -74,6 +73,14 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
             b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() }),
         });
     }
+
+    // disable LLVM-IR verifier
+    // https://llvm.org/docs/Passes.html#verify-module-verifier
+
+    swiftc_exec.addArgs(&.{
+        "-Xfrontend",
+        "-disable-llvm-verify",
+    });
 
     // swift-packages include path
     if (options.swift_packages) |d_packages| {
@@ -159,7 +166,6 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
                     "-Xcc",
                     b.fmt("-D{s}", .{cdefine}),
                 });
-            // swiftc_exec.addArgs(&.{ "-define-availability", cdefine });
             break;
         }
 
