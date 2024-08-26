@@ -63,8 +63,9 @@ pub fn build(b: *std.Build) !void {
         .use_zigcc = true,
         .t_options = try zcc.buildOptions(b, target),
     });
-    _ = exeSwift; // autofix
-    // b.default_step.dependOn(&exeSwift.step);
+
+    if (target.query.isNative())
+        b.default_step.dependOn(&exeSwift.step);
 
     // TODO: fix (need refactoring to cross-compile)
     const exeRust = try rust.BuildStep(b, .{
