@@ -46,8 +46,10 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         }
     }
 
-    for (options.dflags) |dflag| {
-        ldc_exec.addArg(dflag);
+    if (options.dflags) |dflags| {
+        for (dflags) |dflag| {
+            ldc_exec.addArg(dflag);
+        }
     }
 
     if (options.ldflags) |ldflags| {
@@ -359,7 +361,7 @@ pub const DCompileStep = struct {
     linkage: std.builtin.LinkMode = .static,
     betterC: bool = false,
     sources: []const []const u8,
-    dflags: []const []const u8,
+    dflags: ?[]const []const u8 = null,
     ldflags: ?[]const []const u8 = null,
     versions: ?[]const []const u8 = null,
     name: []const u8,

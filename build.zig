@@ -30,9 +30,6 @@ pub fn build(b: *std.Build) !void {
         .sources = &.{
             "examples/main.d",
         },
-        .dflags = &.{
-            "-w",
-        },
         .betterC = !target.query.isNative(),
         .use_zigcc = true,
         .t_options = try zcc.buildOptions(b, target),
@@ -46,7 +43,6 @@ pub fn build(b: *std.Build) !void {
         .sources = &.{
             "examples/main.f90",
         },
-        .fflags = &.{},
         .use_zigcc = true,
         .t_options = try zcc.buildOptions(b, target),
     });
@@ -73,7 +69,6 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
         .source = "examples/main.rs",
-        .rflags = &.{},
         .use_zigcc = true,
         .t_options = try zcc.buildOptions(b, target),
     });

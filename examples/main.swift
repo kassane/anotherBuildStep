@@ -1,3 +1,8 @@
 import Foundation
 
-print("Hello, world!")
+@main
+struct HelloWorld {
+    static func main() {
+        print("Hello, World!")
+    }
+}

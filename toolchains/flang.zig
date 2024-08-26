@@ -25,8 +25,10 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Run 
     }
 
     // Flang flags
-    for (options.fflags) |flag| {
-        flang_exec.addArg(flag);
+    if (options.flags) |flags| {
+        for (flags) |flag| {
+            flang_exec.addArg(flag);
+        }
     }
 
     // Link libraries
@@ -199,7 +201,7 @@ pub const FlangCompileStep = struct {
     kind: std.Build.Step.Compile.Kind = .exe,
     linkage: std.builtin.LinkMode = .static,
     sources: []const []const u8,
-    fflags: []const []const u8,
+    flags: ?[]const []const u8 = null,
     ldflags: ?[]const []const u8 = null,
     name: []const u8,
     artifact: ?*std.Build.Step.Compile = null,

@@ -28,7 +28,7 @@ jobs:
       #   with:
       #     compiler: flang
       #     version: 19
-      - name: (Swift 6) Download & Extract packages
+      - name: (Swift 6) Download & Extract package
         run: |
           curl -LO https://download.swift.org/development/ubuntu2204/swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a/swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a-ubuntu22.04.tar.gz
           tar xzf swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a-ubuntu22.04.tar.gz

@@ -67,8 +67,10 @@ pub fn BuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.Run {
     if (b.verbose)
         rustc_exec.addArg("-v");
 
-    for (options.rflags) |rflag| {
-        rustc_exec.addArg(rflag);
+    if (options.rflags) |flags| {
+        for (flags) |flag| {
+            rustc_exec.addArg(flag);
+        }
     }
 
     if (options.ldflags) |ldflags| {
@@ -229,7 +231,7 @@ pub const RustCompileStep = struct {
     kind: std.Build.Step.Compile.Kind = .exe,
     linkage: std.builtin.LinkMode = .static,
     source: []const u8,
-    rflags: []const []const u8,
+    rflags: ?[]const []const u8 = null,
     ldflags: ?[]const []const u8 = null,
     name: []const u8,
     rs_packages: ?[]const []const u8 = null,

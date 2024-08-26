@@ -122,6 +122,11 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
         swiftc_exec.addArg("-v");
     }
 
+    swiftc_exec.addArgs(&.{
+        "-cxx-interoperability-mode=default",
+        "-parse-as-library",
+    });
+
     if (options.artifact) |lib| {
         // C include path
         for (lib.root_module.include_dirs.items) |include_dir| {
@@ -194,7 +199,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
             if (enabled) swiftc_exec.addArg("-lto=llvm-full");
     }
 
-    if (options.target.result.os.tag == .freestanding) {
+    if (options.target.result.os.tag == .freestanding or options.target.result.isWasm()) {
         swiftc_exec.addArgs(&.{
             "-enable-experimental-feature",
             "Embedded",
@@ -203,8 +208,16 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
         });
     } else {
         if (!options.use_zigcc)
-            swiftc_exec.addArg("-static-stdlib");
+            swiftc_exec.addArg("-static-stdlib")
+        else
+            swiftc_exec.addArgs(&.{
+                "-Xcc",
+                "-stdlib=libc++",
+            });
     }
+
+    if (!options.target.query.isNative())
+        swiftc_exec.addArg("-parse-stdlib");
 
     // embedded targets: aarch64-none-none-elf, arm64-apple-none-macho,
     // armv4t-none-none-eabi, armv6-apple-none-macho, armv6-none-none-eabi,
@@ -215,14 +228,18 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
     // x86_64-unknown-none-elf,
     const mtriple = if (options.target.result.os.tag == .macos)
         b.fmt("{s}-apple-macosx{}", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), options.target.result.os.version_range.semver.min })
+    else if (options.target.result.os.tag == .ios)
+        b.fmt("arm64-apple-ios{}", .{options.target.result.os.version_range.semver.min})
     else if (options.target.result.isWasm() and options.target.result.os.tag == .freestanding)
         b.fmt("{s}-unknown-none-wasm", .{@tagName(options.target.result.cpu.arch)})
     else if (options.target.result.isWasm())
         b.fmt("{s}-none-none-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
     else if (options.target.result.cpu.arch.isRISCV())
         b.fmt("{s}-none-none-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })
+    else if (options.target.result.cpu.arch.isAARCH64())
+        b.fmt("arm64-unknown-{s}-{s}", .{ @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
     else if (options.target.result.cpu.arch == .x86)
-        b.fmt("i686-{s}-{s}", .{ @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
+        b.fmt("i686-unknown-{s}-{s}", .{ @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
     else if (options.target.result.os.tag == .freestanding)
         b.fmt("{s}-unknown-none-elf", .{@tagName(options.target.result.cpu.arch)})
     else

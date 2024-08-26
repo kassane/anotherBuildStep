@@ -10,7 +10,7 @@
 - [x] flang-new support
 - [x] rustc (no cargo) support
 - [ ] ~~rustc (cargo) support~~ (need to figure out how to get the cargo build system to work)
-- [ ] swiftc-6 support
+- [x] swiftc-6 support
 
 ## Required
 
@@ -77,7 +77,6 @@ pub fn build(b: *std.Build) !void {
         .sources = &.{
             "src/main.f90",
         },
-        .fflags = &.{},
         .use_zigcc = true,
         .t_options = try zcc.buildOptions(b, target),
     });
