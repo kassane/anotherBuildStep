@@ -4,7 +4,7 @@
 
 const std = @import("std");
 
-pub fn buildZigCC(b: *std.Build, target_options: *std.Build.Step.Options) *std.Build.Step.Compile {
+pub fn buildZigCC(b: *std.Build, targezcc_options: *std.Build.Step.Options) *std.Build.Step.Compile {
     const exe = b.addExecutable(.{
         .name = "zcc",
         .target = b.graph.host,
@@ -17,7 +17,7 @@ pub fn buildZigCC(b: *std.Build, target_options: *std.Build.Step.Options) *std.B
             }),
         },
     });
-    exe.root_module.addOptions("build_options", target_options);
+    exe.root_module.addOptions("build_options", targezcc_options);
     return exe;
 }
 

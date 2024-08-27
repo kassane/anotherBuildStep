@@ -71,7 +71,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     }
 
     // C++ standard for name mangling compatibility
-    if (options.cxxVerCompat) |version| {
+    if (options.cxx_interop) |version| {
         ldc_exec.addArg(b.fmt("--extern-std={s}", .{switch (version) {
             .cxx11 => "c++11",
             .cxx14 => "c++14",
@@ -332,7 +332,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         ldc_exec.addArg(b.fmt("-of={s}", .{b.pathJoin(&.{ b.install_prefix, outputDir, outputName })}));
 
     if (options.use_zigcc) {
-        const zcc = zigcc.buildZigCC(b, options.t_options.?);
+        const zcc = zigcc.buildZigCC(b, options.zcc_options.?);
         ldc_exec.addPrefixedFileArg("--gcc=", zcc.getEmittedBin());
         ldc_exec.addPrefixedFileArg("--linker=", zcc.getEmittedBin());
     }
@@ -371,8 +371,8 @@ pub const DCompileStep = struct {
     artifact: ?*std.Build.Step.Compile = null,
     use_zigcc: bool = false,
     use_lld: bool = false,
-    t_options: ?*std.Build.Step.Options = null,
-    cxxVerCompat: ?CxxVersion = null,
+    zcc_options: ?*std.Build.Step.Options = null,
+    cxx_interop: ?CxxVersion = null,
 };
 
 /// C++ standard for name mangling compatibility

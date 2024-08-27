@@ -64,13 +64,14 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
     // object file output (zig-cache/o/{hash_id}/*.o)
     if (b.cache_root.path) |path| {
         // immutable state hash
+        const peek_cache_path = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() });
         swiftc_exec.addArgs(&.{
-            "-clang-scanner-module-cache-path", b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() }),
+            "-clang-scanner-module-cache-path", peek_cache_path,
         });
         // mutable state hash
+        const final_cache_path = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() });
         swiftc_exec.addArgs(&.{
-            "-module-cache-path",
-            b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() }),
+            "-module-cache-path", final_cache_path,
         });
     }
 
@@ -122,10 +123,40 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
         swiftc_exec.addArg("-v");
     }
 
-    swiftc_exec.addArgs(&.{
-        "-cxx-interoperability-mode=default",
-        "-parse-as-library",
-    });
+    swiftc_exec.addArg("-parse-as-library");
+
+    if (options.version) |version| {
+        swiftc_exec.addArg(b.fmt("-swift-version={s}", .{switch (version) {
+            .swift6 => "swift-6",
+            .swift5 => "swift-5",
+        }}));
+    }
+
+    if (options.cxx_interop) |version| {
+        swiftc_exec.addArg(b.fmt("-cxx-interoperability-mode={s}", .{switch (version) {
+            .default => "default",
+            .swift6 => "swift-6",
+            .swift58 => "swift-5.8",
+            .swift59 => "swift-5.9",
+            .upcoming_swift => "upcoming-swift",
+        }}));
+    }
+    // C++ standard for name mangling compatibility
+    if (options.cxx_version) |version| {
+        swiftc_exec.addArgs(&.{ "-Xcc", switch (version) {
+            .cxx11 => "c++11",
+            .cxx14 => "c++14",
+            .cxx17 => "c++17",
+            .cxx20 => "c++20",
+            .cxx23 => "c++23",
+            .legacy => "c++98",
+        } });
+    }
+
+    if (options.bridging_header) |header| {
+        swiftc_exec.addArg("-import-bridging-header");
+        swiftc_exec.addPrefixedFileArg("", header);
+    }
 
     if (options.artifact) |lib| {
         // C include path
@@ -201,19 +232,17 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
 
     if (options.target.result.os.tag == .freestanding or options.target.result.isWasm()) {
         swiftc_exec.addArgs(&.{
-            "-enable-experimental-feature",
-            "Embedded",
-            "-no-allocations",
+            "-enable-experimental-feature", "Embedded",
             "-wmo",
         });
     } else {
-        if (!options.use_zigcc)
-            swiftc_exec.addArg("-static-stdlib")
-        else
-            swiftc_exec.addArgs(&.{
-                "-Xcc",
-                "-stdlib=libc++",
-            });
+        // zig c++ have libc++ support by default [linux/macos/mingw]
+        if (options.use_zigcc) {
+            if (options.cxx_interop != null)
+                swiftc_exec.addArgs(&.{
+                    "-Xcc", "-stdlib=libc++",
+                });
+        } else swiftc_exec.addArg("-static-stdlib");
     }
 
     if (!options.target.query.isNative())
@@ -247,7 +276,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
 
     swiftc_exec.addArgs(&.{
         "-target",     mtriple,
-        "-target-cpu", options.target.result.cpu.model.llvm_name orelse "generic",
+        "-target-cpu", options.target.result.cpu.model.llvm_name orelse options.target.result.cpu.model.name,
     });
 
     const outputDir = switch (options.kind) {
@@ -271,7 +300,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
     }
 
     if (options.use_zigcc) {
-        const zcc = zigcc.buildZigCC(b, options.t_options.?);
+        const zcc = zigcc.buildZigCC(b, options.zcc_options.?);
         swiftc_exec.addPrefixedFileArg("-ld-path=", zcc.getEmittedBin());
         swiftc_exec.addPrefixedFileArg("-use-ld=", zcc.getEmittedBin());
     }
@@ -307,5 +336,31 @@ pub const SwiftCompileStep = struct {
     importPaths: ?[]const []const u8 = null,
     artifact: ?*std.Build.Step.Compile = null,
     use_zigcc: bool = false,
-    t_options: ?*std.Build.Step.Options = null,
+    zcc_options: ?*std.Build.Step.Options = null,
+    version: ?swift_Version = null,
+    cxx_interop: ?Interop = null,
+    cxx_version: ?CxxVersion = null,
+    bridging_header: ?std.Build.LazyPath = null,
+};
+
+const swift_Version = enum {
+    swift6,
+    swift5,
+};
+
+const Interop = enum {
+    default,
+    swift6,
+    swift58,
+    swift59,
+    upcoming_swift,
+};
+
+const CxxVersion = enum {
+    cxx11,
+    cxx14,
+    cxx17,
+    cxx20,
+    cxx23,
+    legacy,
 };

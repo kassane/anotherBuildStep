@@ -12,8 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v1
-        with:
-          version: master
       - uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-master
@@ -38,4 +36,4 @@ jobs:
             sudo apt-get update
             sudo apt-get install --no-install-recommends flang
       - name: Build Summary
-        run: zig build --summary all --verbose
+        run: zig build --build-file $PWD/tests/build.zig --summary all --verbose

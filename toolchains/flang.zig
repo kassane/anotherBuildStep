@@ -169,7 +169,7 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Run 
     }
 
     if (options.use_zigcc) {
-        const zcc = zigcc.buildZigCC(b, options.t_options.?);
+        const zcc = zigcc.buildZigCC(b, options.zcc_options.?);
         flang_exec.addArg("-lc++");
         flang_exec.addPrefixedFileArg("-fuse-ld=", zcc.getEmittedBin());
         if (options.runtime) {
@@ -206,7 +206,7 @@ pub const FlangCompileStep = struct {
     name: []const u8,
     artifact: ?*std.Build.Step.Compile = null,
     use_zigcc: bool = false,
-    t_options: ?*std.Build.Step.Options = null,
+    zcc_options: ?*std.Build.Step.Options = null,
     runtime: bool = true,
 };
 
