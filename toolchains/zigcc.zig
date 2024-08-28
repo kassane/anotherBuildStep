@@ -9,24 +9,10 @@ pub fn buildZigCC(b: *std.Build, targezcc_options: *std.Build.Step.Options) *std
         .name = "zcc",
         .target = b.graph.host,
         .optimize = .ReleaseSafe,
-        .root_source_file = .{
-            .cwd_relative = b.pathJoin(&.{
-                rootPath(b),
-                "tools",
-                "zigcc.zig",
-            }),
-        },
+        .root_source_file = b.path("../tools/zigcc.zig"),
     });
     exe.root_module.addOptions("build_options", targezcc_options);
     return exe;
-}
-
-fn rootPath(b: *std.Build) []const u8 {
-    // not get filename from @src().file
-    const src_path = comptime std.fs.path.dirname(@src().file) orelse
-        b.pathResolve(&.{"."});
-    // get absolute path
-    return src_path ++ std.fs.path.sep_str ++ "..";
 }
 
 pub fn buildOptions(b: *std.Build, target: std.Build.ResolvedTarget) !*std.Build.Step.Options {
