@@ -23,51 +23,67 @@ pub fn build(b: *std.Build) !void {
     });
     const optimize = b.standardOptimizeOption(.{});
 
-    const exeDlang = try ldc2.BuildStep(b, .{
-        .name = "d_example",
-        .target = target,
-        .optimize = optimize,
-        .sources = &.{"main.d"},
-        .betterC = !target.query.isNative(),
-        .use_zigcc = true,
-        .zcc_options = try zcc.buildOptions(b, target),
-    });
-    b.default_step.dependOn(&exeDlang.step);
+    if (b.findProgram(&.{"ldmd2"}, &.{})) |_| {
+        const exeDlang = try ldc2.BuildStep(b, .{
+            .name = "d_example",
+            .target = target,
+            .optimize = optimize,
+            .sources = &.{"main.d"},
+            .betterC = !target.query.isNative(),
+            .use_zigcc = true,
+            .zcc_options = try zcc.buildOptions(b, target),
+        });
+        b.default_step.dependOn(&exeDlang.step);
+    } else |err| {
+        std.debug.print("skipping D example: {s}\n", .{@errorName(err)});
+    }
 
-    const exeFortran = try flang.BuildStep(b, .{
-        .name = "fortran_example",
-        .target = target,
-        .optimize = optimize,
-        .sources = &.{"main.f90"},
-        .use_zigcc = true,
-        .zcc_options = try zcc.buildOptions(b, target),
-    });
-    b.default_step.dependOn(&exeFortran.step);
+    if (b.findProgram(&.{ "flang", "flang-new" }, &.{})) |_| {
+        const exeFortran = try flang.BuildStep(b, .{
+            .name = "fortran_example",
+            .target = target,
+            .optimize = optimize,
+            .sources = &.{"main.f90"},
+            .use_zigcc = true,
+            .zcc_options = try zcc.buildOptions(b, target),
+        });
+        b.default_step.dependOn(&exeFortran.step);
+    } else |err| {
+        std.debug.print("skipping Fortran example: {s}\n", .{@errorName(err)});
+    }
 
-    // TODO: fix (need refactoring to cross-compile)
-    const exeRust = try rust.BuildStep(b, .{
-        .name = "rust_example",
-        .target = target,
-        .optimize = optimize,
-        .source = "main.rs",
-        .use_zigcc = true,
-        .zcc_options = try zcc.buildOptions(b, target),
-    });
-    if (target.query.isNative())
-        b.default_step.dependOn(&exeRust.step);
+    if (b.findProgram(&.{"rustc"}, &.{})) |_| {
+        // TODO: fix (need refactoring to cross-compile)
+        const exeRust = try rust.BuildStep(b, .{
+            .name = "rust_example",
+            .target = target,
+            .optimize = optimize,
+            .source = "main.rs",
+            .use_zigcc = true,
+            .zcc_options = try zcc.buildOptions(b, target),
+        });
+        if (target.query.isNative())
+            b.default_step.dependOn(&exeRust.step);
+    } else |err| {
+        std.debug.print("skipping Rust example: {s}\n", .{@errorName(err)});
+    }
 
-    const exeSwift = try swift.BuildStep(b, .{
-        .name = "swift_example",
-        .target = target,
-        .optimize = optimize,
-        .sources = &.{"main.swift"},
-        .use_zigcc = true,
-        .zcc_options = try zcc.buildOptions(b, b.host),
-    });
-    if (target.query.isNative())
-        b.default_step.dependOn(&exeSwift.step);
+    if (b.findProgram(&.{"swiftc"}, &.{})) |_| {
+        const exeSwift = try swift.BuildStep(b, .{
+            .name = "swift_example",
+            .target = target,
+            .optimize = optimize,
+            .sources = &.{"main.swift"},
+            .use_zigcc = true,
+            .zcc_options = try zcc.buildOptions(b, b.host),
+        });
+        if (target.query.isNative())
+            b.default_step.dependOn(&exeSwift.step);
 
-    try libzig2swift(b);
+        try libzig2swift(b);
+    } else |err| {
+        std.debug.print("skipping Swift example: {s}\n", .{@errorName(err)});
+    }
 }
 
 fn libzig2swift(b: *std.Build) !void {
