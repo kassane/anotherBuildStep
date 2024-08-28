@@ -4,14 +4,14 @@
 
 const std = @import("std");
 
-pub fn buildZigCC(b: *std.Build, targezcc_options: *std.Build.Step.Options) *std.Build.Step.Compile {
+pub fn buildZigCC(b: *std.Build, options: *std.Build.Step.Options) *std.Build.Step.Compile {
     const exe = b.addExecutable(.{
         .name = "zcc",
         .target = b.graph.host,
         .optimize = .ReleaseSafe,
         .root_source_file = .{ .cwd_relative = (comptime std.fs.path.dirname(@src().file) orelse ".") ++ "/../tools/zigcc.zig" },
     });
-    exe.root_module.addOptions("build_options", targezcc_options);
+    exe.root_module.addOptions("build_options", options);
     return exe;
 }
 
