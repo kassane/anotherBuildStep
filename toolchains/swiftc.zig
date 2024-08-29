@@ -72,6 +72,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
         const final_cache_path = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() });
         swiftc_exec.addArgs(&.{
             "-module-cache-path", final_cache_path,
+            "-pch-output-dir", final_cache_path, // for objc/bridging-header
         });
     }
 

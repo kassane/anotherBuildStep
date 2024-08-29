@@ -35,7 +35,7 @@ pub fn build(b: *std.Build) !void {
         });
         b.default_step.dependOn(&exeDlang.step);
     } else |err| {
-        std.debug.print("skipping D example: {s}\n", .{@errorName(err)});
+        std.log.err("skipping D example: {s}\n", .{@errorName(err)});
     }
 
     if (b.findProgram(&.{ "flang", "flang-new" }, &.{})) |_| {
@@ -49,7 +49,7 @@ pub fn build(b: *std.Build) !void {
         });
         b.default_step.dependOn(&exeFortran.step);
     } else |err| {
-        std.debug.print("skipping Fortran example: {s}\n", .{@errorName(err)});
+        std.log.err("skipping Fortran example: {s}\n", .{@errorName(err)});
     }
 
     if (b.findProgram(&.{"rustc"}, &.{})) |_| {
@@ -65,7 +65,7 @@ pub fn build(b: *std.Build) !void {
         if (target.query.isNative())
             b.default_step.dependOn(&exeRust.step);
     } else |err| {
-        std.debug.print("skipping Rust example: {s}\n", .{@errorName(err)});
+        std.log.err("skipping Rust example: {s}\n", .{@errorName(err)});
     }
 
     if (b.findProgram(&.{"swiftc"}, &.{})) |_| {
@@ -82,7 +82,7 @@ pub fn build(b: *std.Build) !void {
 
         try libzig2swift(b);
     } else |err| {
-        std.debug.print("skipping Swift example: {s}\n", .{@errorName(err)});
+        std.log.err("skipping Swift example: {s}\n", .{@errorName(err)});
     }
 }
 
@@ -109,7 +109,7 @@ fn libzig2swift(b: *std.Build) !void {
 }
 
 // WIP: get musl libc headers in zig_path
-
+// {
 // const arch_name = std.zig.target.muslArchNameHeaders(target.result.cpu.arch);
 // const os_name = @tagName(target.result.os.tag);
 // const triple = b.fmt("{s}-{s}-musl", .{ arch_name, os_name });
@@ -118,5 +118,5 @@ fn libzig2swift(b: *std.Build) !void {
 //     "include",
 //     triple,
 // });
-
 // std.debug.print("ZIG LIBPATH: {s}\n", .{libpath});
+// }
