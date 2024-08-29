@@ -83,7 +83,7 @@ pub fn BuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.Run {
     }
 
     // Rust Source file
-    rustc_exec.addArg(options.source);
+    rustc_exec.addFileArg(options.source);
 
     // sysroot override
     if (b.sysroot) |sysroot_path| {
@@ -230,7 +230,7 @@ pub const RustCompileStep = struct {
     optimize: std.builtin.OptimizeMode = .Debug,
     kind: std.Build.Step.Compile.Kind = .exe,
     linkage: std.builtin.LinkMode = .static,
-    source: []const u8,
+    source: std.Build.LazyPath,
     rflags: ?[]const []const u8 = null,
     ldflags: ?[]const []const u8 = null,
     name: []const u8,

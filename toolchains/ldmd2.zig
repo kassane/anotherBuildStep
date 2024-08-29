@@ -179,7 +179,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
 
     // D Source files
     for (options.sources) |src| {
-        ldc_exec.addArg(src);
+        ldc_exec.addFileArg(b.path(src));
     }
 
     // linker flags

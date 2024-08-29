@@ -88,7 +88,7 @@ pub fn build(b: *std.Build) !void {
         .name = "rust_example",
         .target = target,
         .optimize = optimize,
-        .source = "src/main.rs",
+        .source = b.path("src/main.rs"),
         .rflags = &.{
             "-C",
             "panic=abort",

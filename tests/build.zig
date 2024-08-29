@@ -58,7 +58,7 @@ pub fn build(b: *std.Build) !void {
             .name = "rust_example",
             .target = target,
             .optimize = optimize,
-            .source = "main.rs",
+            .source = b.path("main.rs"),
             .use_zigcc = true,
             .zcc_options = try zcc.buildOptions(b, target),
         });
