@@ -8,7 +8,7 @@ const dep = @import("depsIterate.zig");
 const artifact = @import("artifact.zig"); // TODO: replace 'Step.Run' to 'Step.Compile'
 
 // Swiftc 6
-pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run {
+pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.InstallDir {
     var swiftc_exec = b.addSystemCommand(&.{"swiftc"});
     swiftc_exec.setName(options.name);
 
@@ -292,13 +292,14 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
     };
 
     // output file
-    if (options.kind != .obj) {
-        // swift no make output dir
-        _ = try std.fs.cwd().makeOpenPath(b.pathJoin(&.{ b.install_prefix, outputDir }), .{});
-        swiftc_exec.addArgs(&.{
-            "-o", b.pathJoin(&.{ b.install_prefix, outputDir, outputName }),
-        });
-    }
+    swiftc_exec.addArg("-o");
+    const output = swiftc_exec.addOutputFileArg(outputName);
+    const install = b.addInstallDirectory(.{
+        .install_dir = .prefix,
+        .source_dir = output.dirname(),
+        .install_subdir = outputDir,
+    });
+    install.step.dependOn(&swiftc_exec.step);
 
     if (options.use_zigcc) {
         const zcc = zigcc.buildZigCC(b, options.zcc_options.?);
@@ -312,7 +313,8 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
     }
 
     const example_run = b.addSystemCommand(&.{b.pathJoin(&.{ b.install_path, outputDir, options.name })});
-    example_run.step.dependOn(&swiftc_exec.step);
+    example_run.setName(options.name);
+    example_run.step.dependOn(&install.step);
 
     const run = if (options.kind != .@"test")
         b.step(b.fmt("run-{s}", .{options.name}), b.fmt("Run {s} example", .{options.name}))
@@ -320,7 +322,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Run 
         b.step("test", "Run all tests");
     run.dependOn(&example_run.step);
 
-    return swiftc_exec;
+    return install;
 }
 
 pub const SwiftCompileStep = struct {

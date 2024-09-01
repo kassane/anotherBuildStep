@@ -7,7 +7,7 @@ const zigcc = @import("zigcc.zig");
 const dep = @import("depsIterate.zig");
 
 // flang support
-pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Run {
+pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.InstallDir {
     const flang = try b.findProgram(&.{ "flang-new", "flang" }, &.{});
 
     // Fortran compiler
@@ -156,12 +156,15 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Run 
         .obj => "obj",
     };
 
-    // output filename
-    flang_exec.addArgs(&.{
-        "-o",
-        b.pathJoin(&.{ b.install_path, outputDir, options.name }),
+    // output file
+    flang_exec.addArg("-o");
+    const output = flang_exec.addOutputFileArg(options.name);
+    const install = b.addInstallDirectory(.{
+        .install_dir = .prefix,
+        .source_dir = output.dirname(),
+        .install_subdir = outputDir,
     });
-    try b.build_root.handle.makePath(b.pathJoin(&.{ b.install_path, outputDir }));
+    install.step.dependOn(&flang_exec.step);
 
     if (options.artifact) |lib| {
         flang_exec.addArtifactArg(lib);
@@ -184,7 +187,7 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Run 
     }
 
     const example_run = b.addSystemCommand(&.{b.pathJoin(&.{ b.install_path, outputDir, options.name })});
-    example_run.step.dependOn(&flang_exec.step);
+    example_run.step.dependOn(&install.step);
 
     const run = if (options.kind != .@"test")
         b.step(b.fmt("run-{s}", .{options.name}), b.fmt("Run {s} example", .{options.name}))
@@ -192,7 +195,7 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Run 
         b.step("test", "Run all tests");
     run.dependOn(&example_run.step);
 
-    return flang_exec;
+    return install;
 }
 
 pub const FlangCompileStep = struct {

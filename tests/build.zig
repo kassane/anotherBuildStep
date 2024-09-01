@@ -33,7 +33,7 @@ pub fn build(b: *std.Build) !void {
             .use_zigcc = true,
             .zcc_options = try zcc.buildOptions(b, target),
         });
-        b.default_step.dependOn(&exeDlang.step);
+        b.getInstallStep().dependOn(&exeDlang.step);
     } else |err| {
         std.log.err("skipping D example: {s}\n", .{@errorName(err)});
     }
@@ -47,7 +47,7 @@ pub fn build(b: *std.Build) !void {
             .use_zigcc = true,
             .zcc_options = try zcc.buildOptions(b, target),
         });
-        b.default_step.dependOn(&exeFortran.step);
+        b.getInstallStep().dependOn(&exeFortran.step);
     } else |err| {
         std.log.err("skipping Fortran example: {s}\n", .{@errorName(err)});
     }
@@ -78,7 +78,7 @@ pub fn build(b: *std.Build) !void {
             .zcc_options = try zcc.buildOptions(b, b.host),
         });
         if (target.query.isNative())
-            b.default_step.dependOn(&exeSwift.step);
+            b.getInstallStep().dependOn(&exeSwift.step);
 
         try libzig2swift(b);
     } else |err| {
@@ -105,7 +105,7 @@ fn libzig2swift(b: *std.Build) !void {
         .zcc_options = try zcc.buildOptions(b, b.host),
         .artifact = lib,
     });
-    b.default_step.dependOn(&exeSwift.step);
+    b.getInstallStep().dependOn(&exeSwift.step);
 }
 
 // WIP: get musl libc headers in zig_path

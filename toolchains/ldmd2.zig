@@ -8,7 +8,7 @@ const dep = @import("depsIterate.zig");
 const artifact = @import("artifact.zig"); // TODO: replace 'Step.Run' to 'Step.Compile'
 
 // Use LDC2 (https://github.com/ldc-developers/ldc) to compile the D examples
-pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
+pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallDir {
     // ldmd2: ldc2 wrapped w/ dmd flags
     const ldc = try b.findProgram(&.{"ldmd2"}, &.{});
 
@@ -328,8 +328,13 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     };
 
     // output file
-    if (options.kind != .obj)
-        ldc_exec.addArg(b.fmt("-of={s}", .{b.pathJoin(&.{ b.install_prefix, outputDir, outputName })}));
+    const output = ldc_exec.addPrefixedOutputFileArg("-of=", outputName);
+    const install = b.addInstallDirectory(.{
+        .install_dir = .prefix,
+        .source_dir = output.dirname(),
+        .install_subdir = outputDir,
+    });
+    install.step.dependOn(&ldc_exec.step);
 
     if (options.use_zigcc) {
         const zcc = zigcc.buildZigCC(b, options.zcc_options.?);
@@ -343,7 +348,8 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
     }
 
     const example_run = b.addSystemCommand(&.{b.pathJoin(&.{ b.install_path, outputDir, options.name })});
-    example_run.step.dependOn(&ldc_exec.step);
+    example_run.setName(options.name);
+    example_run.step.dependOn(&install.step);
 
     const run = if (options.kind != .@"test")
         b.step(b.fmt("run-{s}", .{options.name}), b.fmt("Run {s} example", .{options.name}))
@@ -351,7 +357,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.Run {
         b.step("test", "Run all tests");
     run.dependOn(&example_run.step);
 
-    return ldc_exec;
+    return install;
 }
 
 pub const DCompileStep = struct {
