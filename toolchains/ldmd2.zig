@@ -125,11 +125,13 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
         }),
         .ReleaseFast => ldc_exec.addArgs(&.{
             "-O3",
+            "-release",
             "-enable-inlining",
             "-boundscheck=off",
         }),
         .ReleaseSmall => ldc_exec.addArgs(&.{
             "-Oz",
+            "-release",
             "-enable-inlining",
             "-boundscheck=off",
         }),
@@ -177,8 +179,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
 
     // D Source files
     for (options.sources) |src| {
-        // get absolute path
-        ldc_exec.addFileArg(.{ .cwd_relative = src });
+        ldc_exec.addFileArg(b.path(src));
     }
 
     // linker flags
