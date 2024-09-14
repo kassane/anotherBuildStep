@@ -9,7 +9,7 @@ pub fn buildZigCC(b: *std.Build, options: *std.Build.Step.Options) *std.Build.St
         .name = "zcc",
         .target = b.graph.host,
         .optimize = .ReleaseSafe,
-        .root_source_file = .{ .cwd_relative = (comptime std.fs.path.dirname(@src().file) orelse ".") ++ "/../tools/zigcc.zig" },
+        .root_source_file = b.path("tools/zigcc.zig"),
     });
     exe.root_module.addOptions("build_options", options);
     return exe;

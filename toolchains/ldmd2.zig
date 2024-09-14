@@ -115,7 +115,6 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
             "-gs",
             "-vgc",
             "-vtls",
-            "-verrors=context",
             "-boundscheck=on",
         }),
         .ReleaseSafe => ldc_exec.addArgs(&.{
@@ -125,14 +124,10 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
         }),
         .ReleaseFast => ldc_exec.addArgs(&.{
             "-O3",
-            "-release",
-            "-enable-inlining",
             "-boundscheck=off",
         }),
         .ReleaseSmall => ldc_exec.addArgs(&.{
             "-Oz",
-            "-release",
-            "-enable-inlining",
             "-boundscheck=off",
         }),
     }
@@ -161,14 +156,12 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
     // disable LLVM-IR verifier
     // https://llvm.org/docs/Passes.html#verify-module-verifier
 
-    ldc_exec.addArg("-disable-verify");
-
-    // keep all function bodies in .di files
-
-    ldc_exec.addArg("-Hkeep-all-bodies");
-
-    // automatically finds needed library files and builds
-    ldc_exec.addArg("-i");
+    ldc_exec.addArgs(&.{
+        "-disable-verify",
+        "-Hkeep-all-bodies",
+        "-verrors=context",
+        "-i",
+    });
 
     // D-packages include path
     if (options.d_packages) |d_packages| {
@@ -179,7 +172,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
 
     // D Source files
     for (options.sources) |src| {
-        ldc_exec.addFileArg(b.path(src));
+        ldc_exec.addFileArg(dep.path(b, src));
     }
 
     // linker flags

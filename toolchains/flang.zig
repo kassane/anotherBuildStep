@@ -21,7 +21,8 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Inst
 
     // Fortran Sources
     for (options.sources) |src| {
-        flang_exec.addFileArg(b.path(src));
+        const path = @import("depsIterate.zig").path;
+        flang_exec.addFileArg(path(b, src));
     }
 
     // Flang flags

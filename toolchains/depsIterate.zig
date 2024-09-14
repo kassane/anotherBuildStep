@@ -22,3 +22,16 @@ pub fn dependenciesIterator(lib: *std.Build.Step.Compile, runner: *std.Build.Ste
         }
     }
 }
+
+pub fn path(b: *std.Build, sub_path: []const u8) std.Build.LazyPath {
+    if (std.fs.path.isAbsolute(sub_path)) {
+        return .{
+            .cwd_relative = sub_path,
+        };
+    } else return .{
+        .src_path = .{
+            .owner = b,
+            .sub_path = sub_path,
+        },
+    };
+}

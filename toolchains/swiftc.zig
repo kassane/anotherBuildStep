@@ -93,7 +93,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
 
     // Swift Source files
     for (options.sources) |src| {
-        swiftc_exec.addFileArg(b.path(src));
+        swiftc_exec.addFileArg(dep.path(b, src));
     }
 
     // MS Linker
