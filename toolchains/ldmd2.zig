@@ -320,12 +320,19 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
         else => options.name,
     };
 
+    const extFile = switch (options.kind) {
+        .exe, .@"test" => options.target.result.exeFileExt(),
+        .lib => if (options.linkage == .static) options.target.result.staticLibSuffix() else options.target.result.dynamicLibSuffix(),
+        .obj => if (options.target.result.os.tag == .windows) ".obj" else ".o",
+    };
+
     // output file
-    const output = ldc_exec.addPrefixedOutputFileArg("-of=", outputName);
+    const output = ldc_exec.addPrefixedOutputFileArg("-of=", try std.mem.concat(b.allocator, u8, &.{ outputName, extFile }));
     const install = b.addInstallDirectory(.{
         .install_dir = .prefix,
         .source_dir = output.dirname(),
         .install_subdir = outputDir,
+        .exclude_extensions = &.{ "o", "obj" },
     });
     install.step.dependOn(&ldc_exec.step);
 

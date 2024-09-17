@@ -60,16 +60,6 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Inst
         }),
     }
 
-    // object file output (zig-cache/o/{hash_id}/*.o)
-    var objpath: []const u8 = undefined;
-    if (b.cache_root.path) |path| {
-        // immutable state hash
-        objpath = b.pathJoin(&.{ path, "o", &b.graph.cache.hash.peek() });
-        // flang_exec.addArg(b.fmt("-od={s}", .{objpath}));
-        // mutable state hash
-        // flang_exec.addArg(b.fmt("-cache={s}", .{b.pathJoin(&.{ path, "o", &b.graph.cache.hash.final() })}));
-    }
-
     // sysroot override
     if (b.sysroot) |sysroot_path| {
         flang_exec.addArgs(&.{
@@ -156,14 +146,24 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Inst
         .@"test" => "test",
         .obj => "obj",
     };
+    const outputName = switch (options.kind) {
+        .lib => if (options.target.result.abi != .msvc) try std.mem.join(b.allocator, "", &.{ outputDir, options.name }) else options.name,
+        else => options.name,
+    };
+    const extFile = switch (options.kind) {
+        .exe, .@"test" => options.target.result.exeFileExt(),
+        .lib => if (options.linkage == .static) options.target.result.staticLibSuffix() else options.target.result.dynamicLibSuffix(),
+        .obj => if (options.target.result.os.tag == .windows) ".obj" else ".o",
+    };
 
     // output file
     flang_exec.addArg("-o");
-    const output = flang_exec.addOutputFileArg(options.name);
+    const output = flang_exec.addOutputFileArg(try std.mem.concat(b.allocator, u8, &.{ outputName, extFile }));
     const install = b.addInstallDirectory(.{
         .install_dir = .prefix,
         .source_dir = output.dirname(),
         .install_subdir = outputDir,
+        .exclude_extensions = &.{ "o", "obj" },
     });
     install.step.dependOn(&flang_exec.step);
 

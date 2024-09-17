@@ -275,10 +275,20 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
     else
         b.fmt("{s}-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
 
-    swiftc_exec.addArgs(&.{
-        "-target",     mtriple,
-        "-target-cpu", options.target.result.cpu.model.llvm_name orelse options.target.result.cpu.model.name,
-    });
+    if (options.kind == .obj or (options.kind == .lib and options.linkage == .static)) {
+        swiftc_exec.addArgs(&.{
+            "-Xcc",
+            "-target",
+            mtriple,
+            "-Xcc",
+            b.fmt("-mcpu={s}", .{options.target.result.cpu.model.llvm_name orelse options.target.result.cpu.model.name}),
+        });
+    } else {
+        swiftc_exec.addArgs(&.{
+            "-target",     mtriple,
+            "-target-cpu", options.target.result.cpu.model.llvm_name orelse options.target.result.cpu.model.name,
+        });
+    }
 
     const outputDir = switch (options.kind) {
         .lib => "lib",
@@ -290,14 +300,20 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
         .lib => if (options.target.result.abi != .msvc) try std.mem.join(b.allocator, "", &.{ outputDir, options.name }) else options.name,
         else => options.name,
     };
+    const extFile = switch (options.kind) {
+        .exe, .@"test" => options.target.result.exeFileExt(),
+        .lib => if (options.linkage == .static) options.target.result.staticLibSuffix() else options.target.result.dynamicLibSuffix(),
+        .obj => if (options.target.result.os.tag == .windows) ".obj" else ".o",
+    };
 
     // output file
     swiftc_exec.addArg("-o");
-    const output = swiftc_exec.addOutputFileArg(outputName);
+    const output = swiftc_exec.addOutputFileArg(try std.mem.concat(b.allocator, u8, &.{ outputName, extFile }));
     const install = b.addInstallDirectory(.{
         .install_dir = .prefix,
         .source_dir = output.dirname(),
         .install_subdir = outputDir,
+        .exclude_extensions = &.{ "o", "obj" },
     });
     install.step.dependOn(&swiftc_exec.step);
 
