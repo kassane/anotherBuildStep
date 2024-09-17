@@ -87,7 +87,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
             if (import[0] == '-') {
                 @panic("Import: add import paths only!");
             }
-            ldc_exec.addArg(b.fmt("-I{s}", .{import}));
+            ldc_exec.addPrefixedDirectoryArg("-I", dep.path(b, import));
         }
     }
 
@@ -96,7 +96,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
             if (include[0] == '-') {
                 @panic("Include: add C include paths only!");
             }
-            ldc_exec.addArg(b.fmt("-P-I{s}", .{include}));
+            ldc_exec.addPrefixedDirectoryArg("-P-I", dep.path(b, include));
         }
     }
 
