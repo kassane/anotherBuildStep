@@ -31,13 +31,12 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
 
     if (options.kind == .lib) {
         if (options.linkage == .dynamic) {
-            ldc_exec.addArg("-shared");
-            if (options.target.result.os.tag == .windows) {
-                ldc_exec.addArgs(&.{
-                    "-fvisibility=public",
-                    "--dllimport=all",
-                });
-            }
+            ldc_exec.addArgs(&.{
+                "-shared",
+                "-relocation-model=pic",
+                "-fvisibility=public",
+                "--dllimport=all",
+            });
         } else {
             ldc_exec.addArg("-lib");
             if (options.target.result.os.tag == .windows)
@@ -332,7 +331,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
         .install_dir = .prefix,
         .source_dir = output.dirname(),
         .install_subdir = outputDir,
-        .exclude_extensions = &.{ "o", "obj" },
+        .exclude_extensions = &.{ ".o", ".obj" },
     });
     install.step.dependOn(&ldc_exec.step);
 

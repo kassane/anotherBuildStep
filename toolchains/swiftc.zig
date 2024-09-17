@@ -313,7 +313,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
         .install_dir = .prefix,
         .source_dir = output.dirname(),
         .install_subdir = outputDir,
-        .exclude_extensions = &.{ "o", "obj" },
+        .exclude_extensions = &.{ ".o", ".obj" },
     });
     install.step.dependOn(&swiftc_exec.step);
 
