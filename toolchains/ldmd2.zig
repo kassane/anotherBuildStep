@@ -353,7 +353,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
     const run = if (options.kind != .@"test")
         b.step(b.fmt("run-{s}", .{options.name}), b.fmt("Run {s} example", .{options.name}))
     else
-        b.step("test", "Run all tests");
+        b.step(b.fmt("test-{s}", .{options.name}), b.fmt("Run {s} tests", .{options.name}));
     run.dependOn(&example_run.step);
 
     return install;
