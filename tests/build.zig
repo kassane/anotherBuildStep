@@ -80,16 +80,17 @@ pub fn build(b: *std.Build) !void {
         if (target.query.isNative())
             b.getInstallStep().dependOn(&exeSwift.step);
 
-        try libzig2swift(b);
+        try libzig2swift(b, target);
     } else |err| {
         std.log.err("skipping Swift example: {s}\n", .{@errorName(err)});
     }
 }
 
-fn libzig2swift(b: *std.Build) !void {
+fn libzig2swift(b: *std.Build, target: std.Build.ResolvedTarget) !void {
+    const host_target = if (target.result.abi == .msvc) target else b.host;
     const lib = b.addStaticLibrary(.{
         .name = "zig_abi",
-        .target = b.host,
+        .target = host_target,
         .optimize = .ReleaseSmall,
         .root_source_file = b.path("swift_ffi/zig_abi.zig"),
     });
@@ -97,12 +98,12 @@ fn libzig2swift(b: *std.Build) !void {
 
     const exeSwift = try swift.BuildStep(b, .{
         .name = "swift_ffi",
-        .target = b.host,
+        .target = host_target,
         .optimize = .ReleaseSmall,
         .sources = &.{"swift_ffi/main.swift"},
         .bridging_header = b.path("swift_ffi/c_include.h"),
         .use_zigcc = true,
-        .zcc_options = try zcc.buildOptions(b, b.host),
+        .zcc_options = try zcc.buildOptions(b, host_target),
         .artifact = lib,
     });
     b.getInstallStep().dependOn(&exeSwift.step);

@@ -12,6 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v1
+        with:
+          version: master
       - uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-master
@@ -28,12 +30,64 @@ jobs:
       #     version: 19
       - name: (Swift 6) Download & Extract package
         run: |
-          curl -LO https://download.swift.org/development/ubuntu2204/swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a/swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a-ubuntu22.04.tar.gz
-          tar xzf swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a-ubuntu22.04.tar.gz
-          echo "$PWD/swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a-ubuntu22.04/usr/bin" >> $GITHUB_PATH
+          curl -LO https://download.swift.org/development/ubuntu2204/swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a/swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a-ubuntu22.04.tar.gz
+          tar xzf swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a-ubuntu22.04.tar.gz
+          echo "$PWD/swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a-ubuntu22.04/usr/bin" >> $GITHUB_PATH
       - name: get-flang-linux
         run: |
             sudo apt-get update
             sudo apt-get install --no-install-recommends flang
       - name: Build Summary
         run: zig build --build-file $PWD/tests/build.zig --summary all --verbose
+
+  # windows-target:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       runs-on: [windows-latest]
+  #   runs-on: ${{ matrix.runs-on }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: mlugg/setup-zig@v1
+  #       with:
+  #         version: master
+  #     - uses: dlang-community/setup-dlang@v2
+  #       with:
+  #         compiler: ldc-master
+  #     - uses: compnerd/gha-setup-swift@main
+  #       with:
+  #         branch: development
+  #         tag: DEVELOPMENT-SNAPSHOT-2024-09-06-a
+  #     - uses: actions-rs/toolchain@v1
+  #       with:
+  #           profile: minimal
+  #           toolchain: nightly
+  #           override: true
+  #     - name: Build Summary
+  #       run: zig build --build-file $PWD/tests/build.zig --summary all -freference-trace --verbose
+
+  # macos-target:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       runs-on: [macos-latest]
+  #   runs-on: ${{ matrix.runs-on }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: mlugg/setup-zig@v1
+  #       with:
+  #         version: master
+  #     - uses: dlang-community/setup-dlang@v2
+  #       with:
+  #         compiler: ldc-master
+  #     - name: Select Xcode version
+  #       run: |
+  #         sudo xcode-select -s '/Applications/Xcode_16.0.app/Contents/Developer'
+  #         swift --version
+  #     - uses: actions-rs/toolchain@v1
+  #       with:
+  #           profile: minimal
+  #           toolchain: nightly
+  #           override: true
+  #     - name: Build Summary
+  #       run: zig build --build-file $PWD/tests/build.zig --summary all -freference-trace --verbose

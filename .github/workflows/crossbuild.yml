@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
       - uses: korandoru/setup-zig@v1
         with:
-          zig-version: 0.13.0
+          zig-version: master
       - uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-master
@@ -38,9 +38,9 @@ jobs:
             override: true
       - name: (Swift 6) Download & Extract package
         run: |
-          curl -LO https://download.swift.org/development/ubuntu2204/swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a/swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a-ubuntu22.04.tar.gz
-          tar xzf swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a-ubuntu22.04.tar.gz
-          echo "$PWD/swift-DEVELOPMENT-SNAPSHOT-2024-08-21-a-ubuntu22.04/usr/bin" >> $GITHUB_PATH
+          curl -LO https://download.swift.org/development/ubuntu2204/swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a/swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a-ubuntu22.04.tar.gz
+          tar xzf swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a-ubuntu22.04.tar.gz
+          echo "$PWD/swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a-ubuntu22.04/usr/bin" >> $GITHUB_PATH
       - name: get-flang-linux
         run: |
             sudo apt-get update

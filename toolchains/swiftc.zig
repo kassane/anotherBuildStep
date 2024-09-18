@@ -275,7 +275,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
     else
         b.fmt("{s}-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) });
 
-    if (options.kind == .obj or (options.kind == .lib and options.linkage == .static)) {
+    if (options.kind == .obj) {
         swiftc_exec.addArgs(&.{
             "-Xcc",
             "-target",
