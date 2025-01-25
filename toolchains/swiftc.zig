@@ -267,7 +267,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
     else if (options.target.result.cpu.arch.isRISCV())
         b.fmt("{s}-none-none-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })
     else if (options.target.result.cpu.arch.isAARCH64())
-        b.fmt("arm64-unknown-{s}-{s}", .{ @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
+        b.fmt("aarch64-unknown-{s}-{s}", .{ @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
     else if (options.target.result.cpu.arch == .x86)
         b.fmt("i686-unknown-{s}-{s}", .{ @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
     else if (options.target.result.os.tag == .freestanding)
