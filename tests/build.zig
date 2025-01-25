@@ -75,7 +75,7 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
             .sources = &.{"main.swift"},
             .use_zigcc = true,
-            .zcc_options = try zcc.buildOptions(b, b.host),
+            .zcc_options = try zcc.buildOptions(b, b.graph.host),
         });
         if (target.query.isNative())
             b.getInstallStep().dependOn(&exeSwift.step);
@@ -87,7 +87,7 @@ pub fn build(b: *std.Build) !void {
 }
 
 fn libzig2swift(b: *std.Build, target: std.Build.ResolvedTarget) !void {
-    const host_target = if (target.result.abi == .msvc) target else b.host;
+    const host_target = if (target.result.abi == .msvc) target else b.graph.host;
     const lib = b.addStaticLibrary(.{
         .name = "zig_abi",
         .target = host_target,

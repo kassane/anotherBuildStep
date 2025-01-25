@@ -177,13 +177,15 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Inst
         flang_exec.addArg("-lc++");
         flang_exec.addPrefixedFileArg("-fuse-ld=", zcc.getEmittedBin());
         if (options.runtime) {
-            const flang_dep = buildFortranRuntime(b, .{
+            if (buildFortranRuntime(b, .{
                 .target = options.target,
                 .optimize = options.optimize,
-            });
-            flang_exec.addArtifactArg(flang_dep.artifact("FortranRuntime"));
-            flang_exec.addArtifactArg(flang_dep.artifact("FortranDecimal"));
-            flang_exec.addArtifactArg(flang_dep.artifact("Fortran_main"));
+            })) |runtime| {
+                const flang_dep = runtime;
+                flang_exec.addArtifactArg(flang_dep.artifact("FortranRuntime"));
+                flang_exec.addArtifactArg(flang_dep.artifact("FortranDecimal"));
+                flang_exec.addArtifactArg(flang_dep.artifact("Fortran_main"));
+            }
         }
     }
 
@@ -217,8 +219,8 @@ pub const FlangCompileStep = struct {
 pub fn buildFortranRuntime(b: *std.Build, options: struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-}) *std.Build.Dependency {
-    return b.dependency("flang-runtime", .{
+}) ?*std.Build.Dependency {
+    return b.lazyDependency("flang-runtime", .{
         .target = options.target,
         .optimize = options.optimize,
     });
