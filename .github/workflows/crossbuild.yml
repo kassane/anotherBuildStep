@@ -19,15 +19,13 @@ jobs:
           # - aarch64-windows
           # - aarch64-macos
 
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
-      - uses: korandoru/setup-zig@v1
-        with:
-          zig-version: master
+      - uses: mlugg/setup-zig@v1
       - uses: dlang-community/setup-dlang@v2
         with:
           compiler: ldc-master
@@ -38,9 +36,15 @@ jobs:
             override: true
       - name: (Swift 6) Download & Extract package
         run: |
-          curl -LO https://download.swift.org/development/ubuntu2204/swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a/swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a-ubuntu22.04.tar.gz
-          tar xzf swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a-ubuntu22.04.tar.gz
-          echo "$PWD/swift-DEVELOPMENT-SNAPSHOT-2024-09-17-a-ubuntu22.04/usr/bin" >> $GITHUB_PATH
+          if [ "${{ matrix.runs-on }}" = "ubuntu-24.04-arm" ]; then
+            curl -LO https://download.swift.org/development/ubuntu2404-aarch64/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04-aarch64.tar.gz
+            tar xzf swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04-aarch64.tar.gz
+            echo "$PWD/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04-aarch64/usr/bin" >> $GITHUB_PATH
+          else
+            curl -LO https://download.swift.org/development/ubuntu2404/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04.tar.gz
+            tar xzf swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04.tar.gz
+            echo "$PWD/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04/usr/bin" >> $GITHUB_PATH
+          fi     
       - name: get-flang-linux
         run: |
             sudo apt-get update
