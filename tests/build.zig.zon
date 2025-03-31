@@ -7,8 +7,8 @@
     .dependencies = .{
         .abs = .{ .path = ".." },
         .@"flang-runtime" = .{
-            .url = "git+https://github.com/kassane/ffi-flang-zig#4a44bfda834ed0adfe6bbe8d39a94a452ab306de",
-            .hash = "1220d35a483abbb19acbd79904e46ea2e841f6fc2be28604d9a1b2326c513f32766d",
+            .url = "git+https://github.com/kassane/ffi-flang-zig#c01a86645ab04dbc744cceb22a004bdd579dc5cf",
+            .hash = "N-V-__8AAGibrQAkXyh6IRIy8Ukdj_xI9PcTaEOQZcpO8_P4",
             .lazy = true,
         },
     },

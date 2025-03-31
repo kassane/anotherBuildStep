@@ -184,7 +184,6 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Inst
                 const flang_dep = runtime;
                 flang_exec.addArtifactArg(flang_dep.artifact("FortranRuntime"));
                 flang_exec.addArtifactArg(flang_dep.artifact("FortranDecimal"));
-                flang_exec.addArtifactArg(flang_dep.artifact("Fortran_main"));
             }
         }
     }
