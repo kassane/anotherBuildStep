@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 .{
-    .name = "anotherBuildStep/tests",
+    .name = .tests,
     .version = "0.0.0",
-    .minimum_zig_version = "0.13.0",
+    .minimum_zig_version = "0.14.0",
+    .fingerprint = 0x1260fc5e916dd0e0,
     .dependencies = .{
         .abs = .{ .path = ".." },
         .@"flang-runtime" = .{

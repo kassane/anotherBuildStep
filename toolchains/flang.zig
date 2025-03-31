@@ -84,7 +84,7 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Inst
         }
 
         // Darwin frameworks
-        if (options.target.result.isDarwin()) {
+        if (options.target.result.os.tag.isDarwin()) {
             var it = lib.root_module.frameworks.iterator();
             while (it.next()) |framework| {
                 flang_exec.addArg(b.fmt("-L-framework", .{}));
@@ -120,11 +120,11 @@ pub fn BuildStep(b: *std.Build, options: FlangCompileStep) !*std.Build.Step.Inst
         }
     }
 
-    const target = if (options.target.result.isDarwin())
+    const target = if (options.target.result.os.tag.isDarwin())
         b.fmt("{s}-apple-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
-    else if (options.target.result.isWasm() and options.target.result.os.tag == .freestanding)
+    else if (options.target.result.cpu.arch.isWasm() and options.target.result.os.tag == .freestanding)
         b.fmt("{s}-unknown-unknown", .{@tagName(options.target.result.cpu.arch)})
-    else if (options.target.result.isWasm())
+    else if (options.target.result.cpu.arch.isWasm())
         b.fmt("{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
     else if (options.target.result.cpu.arch.isRISCV())
         b.fmt("{s}-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })

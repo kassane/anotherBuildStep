@@ -189,12 +189,12 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
         ldc_exec.addArg("-L--no-as-needed");
     }
     // LLD (not working in zld)
-    if (options.target.result.isDarwin() and !options.use_zigcc) {
+    if (options.target.result.os.tag.isDarwin() and !options.use_zigcc) {
         // https://github.com/ldc-developers/ldc/issues/4501
         ldc_exec.addArg("-L-w"); // hide linker warnings
     }
 
-    if (options.target.result.isWasm()) {
+    if (options.target.result.cpu.arch.isWasm()) {
         ldc_exec.addArg("-L-allow-undefined");
         // ldc2 enable use_lld by default on wasm target.
         // Need use --no-entry
@@ -258,7 +258,7 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
             ldc_exec.addArg("-L=-dead_strip");
         }
         // Darwin frameworks
-        if (options.target.result.isDarwin()) {
+        if (options.target.result.os.tag.isDarwin()) {
             var it = lib.root_module.frameworks.iterator();
             while (it.next()) |framework| {
                 ldc_exec.addArg(b.fmt("-L-framework", .{}));
@@ -290,11 +290,11 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
     }
 
     // ldc2 doesn't support zig native (a.k.a: native-native or native)
-    const mtriple = if (options.target.result.isDarwin())
+    const mtriple = if (options.target.result.os.tag.isDarwin())
         b.fmt("{s}-apple-{s}", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
-    else if (options.target.result.isWasm() and options.target.result.os.tag == .freestanding)
+    else if (options.target.result.cpu.arch.isWasm() and options.target.result.os.tag == .freestanding)
         b.fmt("{s}-unknown-unknown-wasm", .{@tagName(options.target.result.cpu.arch)})
-    else if (options.target.result.isWasm())
+    else if (options.target.result.cpu.arch.isWasm())
         b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
     else if (options.target.result.cpu.arch.isRISCV())
         b.fmt("{s}-unknown-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })

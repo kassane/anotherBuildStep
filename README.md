@@ -14,7 +14,7 @@
 
 ## Required
 
-- [zig](https://ziglang.org/download) v0.13.0 or master
+- [zig](https://ziglang.org/download) v0.14.0 or master
 
 
 ## Supported

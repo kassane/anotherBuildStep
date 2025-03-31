@@ -111,11 +111,11 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
         swiftc_exec.addArgs(&.{ "-Xlinker", "--no-as-needed" });
     }
     // LLD
-    if (options.target.result.isDarwin() and !options.use_zigcc) {
+    if (options.target.result.os.tag.isDarwin() and !options.use_zigcc) {
         swiftc_exec.addArgs(&.{ "-Xlinker", "-w" }); // hide linker warnings
     }
 
-    if (options.target.result.isWasm()) {
+    if (options.target.result.cpu.arch.isWasm()) {
         swiftc_exec.addArgs(&.{ "-Xlinker", "-allow-undefined" });
         swiftc_exec.addArgs(&.{ "-Xlinker", "--no-entry" });
     }
@@ -207,7 +207,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
         }
 
         // Darwin frameworks
-        if (options.target.result.isDarwin()) {
+        if (options.target.result.os.tag.isDarwin()) {
             var it = lib.root_module.frameworks.iterator();
             while (it.next()) |framework| {
                 swiftc_exec.addArg(b.fmt("-framework", .{}));
@@ -231,7 +231,7 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
             if (enabled) swiftc_exec.addArg("-lto=llvm-full");
     }
 
-    if (options.target.result.os.tag == .freestanding or options.target.result.isWasm()) {
+    if (options.target.result.os.tag == .freestanding or options.target.result.cpu.arch.isWasm()) {
         swiftc_exec.addArgs(&.{
             "-enable-experimental-feature", "Embedded",
             "-wmo",
@@ -260,9 +260,9 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
         b.fmt("{s}-apple-macosx{}", .{ if (options.target.result.cpu.arch.isAARCH64()) "arm64" else @tagName(options.target.result.cpu.arch), options.target.result.os.version_range.semver.min })
     else if (options.target.result.os.tag == .ios)
         b.fmt("arm64-apple-ios{}", .{options.target.result.os.version_range.semver.min})
-    else if (options.target.result.isWasm() and options.target.result.os.tag == .freestanding)
+    else if (options.target.result.cpu.arch.isWasm() and options.target.result.os.tag == .freestanding)
         b.fmt("{s}-unknown-none-wasm", .{@tagName(options.target.result.cpu.arch)})
-    else if (options.target.result.isWasm())
+    else if (options.target.result.cpu.arch.isWasm())
         b.fmt("{s}-none-none-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
     else if (options.target.result.cpu.arch.isRISCV())
         b.fmt("{s}-none-none-{s}", .{ @tagName(options.target.result.cpu.arch), if (options.target.result.os.tag == .freestanding) "elf" else @tagName(options.target.result.os.tag) })

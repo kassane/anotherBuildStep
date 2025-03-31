@@ -106,7 +106,7 @@ pub fn BuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.Run {
         }
 
         // Darwin frameworks
-        if (options.target.result.isDarwin()) {
+        if (options.target.result.os.tag.isDarwin()) {
             var it = lib.root_module.frameworks.iterator();
             while (it.next()) |framework| {
                 rustc_exec.addArg(b.fmt("-L-framework", .{}));
@@ -142,11 +142,11 @@ pub fn BuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.Run {
         }
     }
 
-    const target = if (options.target.result.isDarwin())
+    const target = if (options.target.result.os.tag.isDarwin())
         b.fmt("{s}-apple-darwin", .{@tagName(options.target.result.cpu.arch)})
-    else if (options.target.result.isWasm() and options.target.result.os.tag == .freestanding)
+    else if (options.target.result.cpu.arch.isWasm() and options.target.result.os.tag == .freestanding)
         b.fmt("{s}-unknown-unknown", .{@tagName(options.target.result.cpu.arch)})
-    else if (options.target.result.isWasm())
+    else if (options.target.result.cpu.arch.isWasm())
         b.fmt("{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag) })
     else if (options.target.result.cpu.arch.isRISCV())
         b.fmt("{s}gc-unknown-{s}-{s}", .{ @tagName(options.target.result.cpu.arch), @tagName(options.target.result.os.tag), @tagName(options.target.result.abi) })
@@ -157,7 +157,7 @@ pub fn BuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.Run {
 
     rustc_exec.addArgs(&.{ "--target", target });
 
-    if (options.target.result.isMusl()) {
+    if (options.target.result.isMuslLibC()) {
         rustc_exec.addArgs(&.{
             "-C",
             "target-feature=+crt-static",
