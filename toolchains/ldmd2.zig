@@ -336,7 +336,8 @@ pub fn BuildStep(b: *std.Build, options: DCompileStep) !*std.Build.Step.InstallD
     install.step.dependOn(&ldc_exec.step);
 
     if (options.use_zigcc) {
-        const zcc = zigcc.buildZigCC(b, options.zcc_options.?);
+        const zcc_opt = try zigcc.buildOptions(b, options.target);
+        const zcc = zigcc.buildZigCC(b, zcc_opt);
         ldc_exec.addPrefixedFileArg("--gcc=", zcc.getEmittedBin());
         ldc_exec.addPrefixedFileArg("--linker=", zcc.getEmittedBin());
     }
@@ -376,7 +377,6 @@ pub const DCompileStep = struct {
     artifact: ?*std.Build.Step.Compile = null,
     use_zigcc: bool = false,
     use_lld: bool = false,
-    zcc_options: ?*std.Build.Step.Options = null,
     cxx_interop: ?CxxVersion = null,
 };
 

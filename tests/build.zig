@@ -31,7 +31,6 @@ pub fn build(b: *std.Build) !void {
             .sources = &.{"main.d"},
             .betterC = !target.query.isNative(),
             .use_zigcc = true,
-            .zcc_options = try zcc.buildOptions(b, target),
         });
         b.getInstallStep().dependOn(&exeDlang.step);
     } else |err| {
@@ -45,7 +44,6 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
             .sources = &.{"main.f90"},
             .use_zigcc = true,
-            .zcc_options = try zcc.buildOptions(b, target),
         });
         b.getInstallStep().dependOn(&exeFortran.step);
     } else |err| {
@@ -60,7 +58,6 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
             .source = b.path("main.rs"),
             .use_zigcc = true,
-            .zcc_options = try zcc.buildOptions(b, target),
         });
         if (target.query.isNative())
             b.default_step.dependOn(&exeRust.step);
@@ -75,7 +72,6 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
             .sources = &.{"main.swift"},
             .use_zigcc = true,
-            .zcc_options = try zcc.buildOptions(b, b.graph.host),
         });
         if (target.query.isNative())
             b.getInstallStep().dependOn(&exeSwift.step);
@@ -103,7 +99,6 @@ fn libzig2swift(b: *std.Build, target: std.Build.ResolvedTarget) !void {
         .sources = &.{"swift_ffi/main.swift"},
         .bridging_header = b.path("swift_ffi/c_include.h"),
         .use_zigcc = true,
-        .zcc_options = try zcc.buildOptions(b, host_target),
         .artifact = lib,
     });
     b.getInstallStep().dependOn(&exeSwift.step);

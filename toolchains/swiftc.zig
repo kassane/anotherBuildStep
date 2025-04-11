@@ -318,7 +318,8 @@ pub fn BuildStep(b: *std.Build, options: SwiftCompileStep) !*std.Build.Step.Inst
     install.step.dependOn(&swiftc_exec.step);
 
     if (options.use_zigcc) {
-        const zcc = zigcc.buildZigCC(b, options.zcc_options.?);
+        const zcc_opt = try zigcc.buildOptions(b, options.target);
+        const zcc = zigcc.buildZigCC(b, zcc_opt);
         swiftc_exec.addPrefixedFileArg("-ld-path=", zcc.getEmittedBin());
         swiftc_exec.addPrefixedFileArg("-use-ld=", zcc.getEmittedBin());
     }
@@ -355,7 +356,6 @@ pub const SwiftCompileStep = struct {
     importPaths: ?[]const []const u8 = null,
     artifact: ?*std.Build.Step.Compile = null,
     use_zigcc: bool = false,
-    zcc_options: ?*std.Build.Step.Options = null,
     version: ?swift_Version = null,
     cxx_interop: ?Interop = null,
     cxx_version: ?CxxVersion = null,

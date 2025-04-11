@@ -197,7 +197,8 @@ pub fn BuildStep(b: *std.Build, options: RustCompileStep) !*std.Build.Step.Run {
     rustc_exec.addArg(b.fmt("--crate-name={s}", .{options.name}));
 
     if (options.use_zigcc) {
-        const zcc = zigcc.buildZigCC(b, options.zcc_options.?);
+        const zcc_opt = try zigcc.buildOptions(b, options.target);
+        const zcc = zigcc.buildZigCC(b, zcc_opt);
         rustc_exec.addArg("-C");
         rustc_exec.addPrefixedFileArg("linker=", zcc.getEmittedBin());
     }
@@ -238,7 +239,6 @@ pub const RustCompileStep = struct {
     artifact: ?*std.Build.Step.Compile = null,
     edition: rustEdition = .@"2021",
     use_zigcc: bool = false,
-    zcc_options: ?*std.Build.Step.Options = null,
 };
 
 pub const rustEdition = enum {

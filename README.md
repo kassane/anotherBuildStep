@@ -78,7 +78,6 @@ pub fn build(b: *std.Build) !void {
             "src/main.f90",
         },
         .use_zigcc = true,
-        .zcc_options = try zcc.buildOptions(b, target),
     });
     b.default_step.dependOn(&exeFortran.step);
 
@@ -106,7 +105,6 @@ pub fn build(b: *std.Build) !void {
             "examples/main.swift",
         },
         .use_zigcc = true,
-        .zcc_options = try zcc.buildOptions(b, target),
     });
     b.default_step.dependOn(&exeSwift.step);
 }
