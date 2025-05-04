@@ -24,7 +24,7 @@ pub fn buildOptions(b: *std.Build, target: std.Build.ResolvedTarget) !*std.Build
     const native = if (target.query.isNative()) switch (target.result.abi) {
         .msvc => "native-native-msvc",
         else => "native-native",
-    } else try target.result.zigTriple(b.allocator);
+    } else try target.result.linuxTriple(b.allocator);
     zigcc_options.addOption(
         ?[]const u8,
         "triple",
