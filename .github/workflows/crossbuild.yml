@@ -37,13 +37,13 @@ jobs:
       - name: (Swift 6) Download & Extract package
         run: |
           if [ "${{ matrix.runs-on }}" = "ubuntu-24.04-arm" ]; then
-            curl -LO https://download.swift.org/development/ubuntu2404-aarch64/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04-aarch64.tar.gz
-            tar xzf swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04-aarch64.tar.gz
-            echo "$PWD/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04-aarch64/usr/bin" >> $GITHUB_PATH
+            curl -LO https://download.swift.org/swift-6.1-release/ubuntu2404-aarch64/swift-6.1-RELEASE/swift-6.1-RELEASE-ubuntu24.04-aarch64.tar.gz
+            tar xzf swift-6.1-RELEASE-ubuntu24.04-aarch64.tar.gz
+            echo "$PWD/swift-6.1-RELEASE-ubuntu24.04-aarch64/usr/bin" >> $GITHUB_PATH
           else
-            curl -LO https://download.swift.org/development/ubuntu2404/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04.tar.gz
-            tar xzf swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04.tar.gz
-            echo "$PWD/swift-DEVELOPMENT-SNAPSHOT-2025-01-10-a-ubuntu24.04/usr/bin" >> $GITHUB_PATH
+            curl -LO https://download.swift.org//swift-6.1-release/ubuntu2404/swift-6.1-RELEASE/swift-6.1-RELEASE-ubuntu24.04.tar.gz
+            tar xzf swift-6.1-RELEASE-ubuntu24.04.tar.gz
+            echo "$PWD/swift-6.1-RELEASE-ubuntu24.04/usr/bin" >> $GITHUB_PATH
           fi     
       - name: get-flang-linux
         run: |
