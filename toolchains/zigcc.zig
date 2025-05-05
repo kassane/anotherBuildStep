@@ -98,6 +98,11 @@ const generated_zcc =
     \\             // NOT CHANGE!!
     \\         } else if (std.mem.startsWith(u8, arg, "-lFortran")) {
     \\             // NOT CHANGE!!
+    \\         } else if (std.mem.startsWith(u8, arg, "/NOLOGO") or
+    \\             std.mem.startsWith(u8, arg, "/P") or std.mem.startsWith(u8, arg, "/F")
+    \\             or std.mem.startsWith(u8, arg, "/Zc"))
+    \\         {
+    \\             // NOT CHANGE!!
     \\         } else if (std.mem.endsWith(u8, arg, "linkonceodr-outlining")) {
     \\             // NOT CHANGE!!
     \\         } else if (std.mem.startsWith(u8, arg, "aarch64linux") or
